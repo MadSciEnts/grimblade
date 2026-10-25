@@ -653,13 +653,34 @@ export class GameEngine {
     }
   }
 
+  public getViewportSize(): { w: number; h: number; dpr: number } {
+    if (!this.canvas) return { w: 800, h: 600, dpr: 1 };
+    
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const rect = this.canvas.getBoundingClientRect();
+    
+    const w = rect.width > 0 ? rect.width : (this.canvas.clientWidth || window.innerWidth || 800);
+    const h = rect.height > 0 ? rect.height : (this.canvas.clientHeight || window.innerHeight || 600);
+    
+    return { w, h, dpr };
+  }
+
   // Render Pipeline: 2.5D Zelda 3 Depth Sorting, Dynamic Darkness & Torchlight
   public render() {
     if (!this.canvas || !this.ctx || !this.dungeon) return;
     const ctx = this.ctx;
-    const dpr = window.devicePixelRatio || 1;
-    const w = this.canvas.clientWidth || (this.canvas.width / dpr);
-    const h = this.canvas.clientHeight || (this.canvas.height / dpr);
+    const { w, h, dpr } = this.getViewportSize();
+
+    // Ensure backing store resolution matches target DPR
+    const targetCanvasWidth = Math.floor(w * dpr);
+    const targetCanvasHeight = Math.floor(h * dpr);
+    if (this.canvas.width !== targetCanvasWidth || this.canvas.height !== targetCanvasHeight) {
+      this.canvas.width = targetCanvasWidth;
+      this.canvas.height = targetCanvasHeight;
+    }
+
+    // Set DPR scale on canvas context every frame
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
     // Screen shake offset
     const shakeX = (Math.random() - 0.5) * this.camera.shake * 2;
@@ -672,9 +693,12 @@ export class GameEngine {
     ctx.fillStyle = '#050405';
     ctx.fillRect(0, 0, w, h);
 
-    // Apply Camera transform
-    const cx = Math.round(w / 2 - this.camera.x + shakeX);
-    const cy = Math.round(h / 2 - this.camera.y + shakeY);
+    // Dynamic camera center calculation:
+    // Keeps player exactly in the middle of the screen across all device resolutions & aspect ratios.
+    const centerX = w / 2;
+    const centerY = h / 2;
+    const cx = Math.round(centerX - this.camera.x + shakeX);
+    const cy = Math.round(centerY - this.camera.y + shakeY);
     ctx.translate(cx, cy);
 
     // 1. Draw Tilemap (Floor & Base Walls)
@@ -825,7 +849,7 @@ export class GameEngine {
 
       ctx.save();
       // Render in screen space
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
       // Black fade overlay
       ctx.fillStyle = `rgba(3, 2, 4, ${alpha.toFixed(2)})`;
@@ -932,9 +956,7 @@ export class GameEngine {
   ) {
     if (!this.dungeon || !this.canvas) return;
     const { tiles, width, height } = this.dungeon.map;
-    const dpr = window.devicePixelRatio || 1;
-    const w = this.canvas.clientWidth || (this.canvas.width / dpr);
-    const h = this.canvas.clientHeight || (this.canvas.height / dpr);
+    const { w, h } = this.getViewportSize();
 
     const floorImg = textureAtlas.get('tile_floor');
     const ritualImg = textureAtlas.get('tile_ritual_floor');

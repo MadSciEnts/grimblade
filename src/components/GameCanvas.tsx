@@ -42,11 +42,17 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({ onCanvasReady }) => {
     updateSize();
     window.addEventListener('resize', updateSize);
 
+    const resizeObserver = new ResizeObserver(() => {
+      updateSize();
+    });
+    resizeObserver.observe(container);
+
     gameEngine.init(canvas);
     if (onCanvasReady) onCanvasReady();
 
     return () => {
       window.removeEventListener('resize', updateSize);
+      resizeObserver.disconnect();
     };
   }, [onCanvasReady]);
 
