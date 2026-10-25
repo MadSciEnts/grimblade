@@ -700,7 +700,10 @@ class TextureAtlas {
     // 2. DIRECTION: UP (Back View - Hero looking into dungeon darkness)
     // =========================================================================
     else if (facing === 'up') {
-      // Boots: Back of calves & heels pointing up
+      // 1. Shield on left arm facing UP (Drawn FIRST so player back/head sits in front)
+      this.renderShield(ctx, facing, isShielding, walkBob, equipment.shield);
+
+      // 2. Boots: Back of calves & heels pointing up
       ctx.fillStyle = equipment.boots.color || PALETTE.ironDark;
       ctx.fillRect(-6, 8 + walkBob - legOffset, 4, 5);
       ctx.fillRect(2, 8 + walkBob + legOffset, 4, 5);
@@ -708,11 +711,11 @@ class TextureAtlas {
       ctx.fillRect(-5, 11 + walkBob - legOffset, 2, 2);
       ctx.fillRect(3, 11 + walkBob + legOffset, 2, 2);
 
-      // Back of Tunic / Mantle
+      // 3. Back of Tunic / Mantle
       ctx.fillStyle = tunicColor;
       ctx.fillRect(-7, -4 + walkBob, 14, 13);
 
-      // SOLID BACKPLATE: Spine seam and shoulder blade plating (NO front emblem)
+      // 4. SOLID BACKPLATE: Spine seam and shoulder blade plating (NO front emblem)
       ctx.fillStyle = armorColor;
       ctx.fillRect(-6, -3 + walkBob, 12, 10);
       // Dark spinal rivet seam
@@ -734,15 +737,13 @@ class TextureAtlas {
         ctx.fillRect(1, 3 + walkBob, 3, 1);
       }
 
-      // HEAD: ZERO SKIN VISIBLE! Back of skull cap + dark chainmail aventail
+      // 5. HEAD & HELMET: Solid metal skull dome with central crest ridge
       ctx.fillStyle = PALETTE.ironDark; // Dark chainmail coif protecting neck
       ctx.fillRect(-5, -8 + walkBob, 10, 4);
 
-      // Back of Helmet: Solid metal skull dome with central crest ridge
-      ctx.fillStyle = equipment.helmet ? helmColor : '#2b1810'; // Hair if no helm
-      ctx.fillRect(-6, -16 + walkBob, 12, 10); // Solid skull back covering entire head
+      ctx.fillStyle = equipment.helmet ? helmColor : '#2b1810';
+      ctx.fillRect(-6, -16 + walkBob, 12, 10);
       if (equipment.helmet) {
-        // Central helmet comb running down back of head
         ctx.fillStyle = PALETTE.ironBright;
         ctx.fillRect(-1, -16 + walkBob, 2, 9);
         if (equipment.helmet.rarity === 'legendary' || equipment.helmet.rarity === 'mythic') {
@@ -756,7 +757,7 @@ class TextureAtlas {
         }
       }
 
-      // Weapon pointing up (Shield was already rendered first above)
+      // 6. Weapon pointing up into dungeon
       this.renderWeapon(ctx, facing, isAttacking, attackProgress, walkBob, equipment.weapon);
     }
 
@@ -829,18 +830,21 @@ class TextureAtlas {
     // 4. DIRECTION: RIGHT (Side Profile View - Hero facing right)
     // =========================================================================
     else {
-      // Staggered walking legs (narrower side profile: 5px)
+      // 1. Shield in background on left arm (far side from camera when facing right)
+      this.renderShield(ctx, facing, isShielding, walkBob, equipment.shield);
+
+      // 2. Staggered walking legs (narrower side profile: 5px)
       ctx.fillStyle = equipment.boots.color || PALETTE.ironDark;
       ctx.fillRect(-2 - legOffset, 8 + walkBob, 4, 5);
       ctx.fillRect(3 + legOffset, 8 + walkBob, 4, 5);
       ctx.fillStyle = PALETTE.ironLight;
       ctx.fillRect(5 + legOffset, 11 + walkBob, 2, 2); // Right pointed toe
 
-      // Side Profile Torso (8px wide, from -3 to +5)
+      // 3. Side Profile Torso (8px wide, from -3 to +5)
       ctx.fillStyle = tunicColor;
       ctx.fillRect(-4, -4 + walkBob, 9, 13);
 
-      // Side Cuirass: Leading shoulder pauldron protecting right sword arm!
+      // 4. Side Cuirass: Leading shoulder pauldron protecting right sword arm!
       ctx.fillStyle = armorColor;
       ctx.fillRect(-3, -3 + walkBob, 8, 10);
       // Heavy Right Shoulder Pauldron
@@ -857,7 +861,7 @@ class TextureAtlas {
         ctx.fillRect(1, 0 + walkBob, 3, 1);
       }
 
-      // Head: Profile facing right! Nose profile jutting out at +6
+      // 5. Head: Profile facing right! Nose profile jutting out at +6
       ctx.fillStyle = PALETTE.skinHero;
       ctx.fillRect(-3, -13 + walkBob, 8, 8);
       ctx.fillRect(4, -10 + walkBob, 2, 3); // Nose tip pointing RIGHT
@@ -866,7 +870,7 @@ class TextureAtlas {
       ctx.fillStyle = '#ffffff';
       ctx.fillRect(2, -9 + walkBob, 1, 1);
 
-      // Profile Helmet: Visor beak jutting forward to right (+7), nape guard at back (-4)
+      // 6. Profile Helmet: Visor beak jutting forward to right (+7), nape guard at back (-4)
       if (equipment.helmet) {
         ctx.fillStyle = helmColor;
         ctx.fillRect(-4, -16 + walkBob, 10, 6); // Dome
@@ -885,8 +889,7 @@ class TextureAtlas {
         }
       }
 
-      // Shield in background, Weapon forward in foreground!
-      this.renderShield(ctx, facing, isShielding, walkBob, equipment.shield);
+      // 7. Weapon forward in foreground!
       this.renderWeapon(ctx, facing, isAttacking, attackProgress, walkBob, equipment.weapon);
     }
 
@@ -911,269 +914,321 @@ class TextureAtlas {
       ctx.save();
 
       if (facing === 'left') {
-        // LEFT RAISING BLOCK STANCE: Angled side-profile shield wall extended left
-        ctx.translate(-8, -1 + walkBob);
+        // LEFT RAISING BLOCK STANCE: Large angled shield wall extended left (-12px)
+        ctx.translate(-12, -2 + walkBob);
 
         // Protective energy deflection arc on left side
-        ctx.fillStyle = 'rgba(251, 191, 36, 0.25)';
+        ctx.fillStyle = 'rgba(251, 191, 36, 0.3)';
         ctx.beginPath();
-        ctx.arc(-2, 0, 14, Math.PI * 0.6, Math.PI * 1.4);
+        ctx.arc(-3, 0, 16, Math.PI * 0.55, Math.PI * 1.45);
         ctx.fill();
 
         // Forearm Strap holding shield from right side
         ctx.fillStyle = PALETTE.clothLeather;
-        ctx.fillRect(1, -2, 5, 4);
+        ctx.fillRect(2, -3, 6, 5);
         ctx.fillStyle = PALETTE.goldMid;
-        ctx.fillRect(3, -2, 2, 4);
+        ctx.fillRect(4, -3, 2, 5);
 
-        // Angled Side Profile Shield Plate (curved top and tapered bottom)
+        // Angled Side Profile Shield Plate (10px wide by 18px tall)
         ctx.fillStyle = shieldColor;
         ctx.beginPath();
-        ctx.moveTo(3, -8);
-        ctx.lineTo(-3, -6);
-        ctx.lineTo(-3, 4);
-        ctx.lineTo(2, 8);
-        ctx.lineTo(4, 5);
-        ctx.lineTo(1, 0);
+        ctx.moveTo(4, -9);
+        ctx.lineTo(-4, -7);
+        ctx.lineTo(-4, 5);
+        ctx.lineTo(2, 9);
+        ctx.lineTo(5, 6);
+        ctx.lineTo(2, 0);
         ctx.closePath();
         ctx.fill();
 
         // Outer Metallic Rim Guard facing left
         ctx.fillStyle = rimColor;
-        ctx.fillRect(-4, -6, 2, 10);
+        ctx.fillRect(-5, -7, 2, 12);
+        ctx.fillRect(-4, -8, 8, 2);
+        ctx.fillRect(-4, 8, 6, 2);
 
-        // Boss Stud jutting out to the left
+        // Boss Stud jutting far out to the left
         ctx.fillStyle = PALETTE.goldBright;
-        ctx.fillRect(-6, -2, 3, 4);
+        ctx.fillRect(-8, -2, 4, 5);
 
         // Heraldic Trim on angled plate
         ctx.fillStyle = isLegendary ? PALETTE.goldMid : PALETTE.ironLight;
-        ctx.fillRect(-1, -4, 2, 8);
+        ctx.fillRect(-1, -5, 2, 10);
 
         if (durRatio < 0.5) {
           ctx.fillStyle = PALETTE.voidBlack;
-          ctx.fillRect(-2, -1, 3, 1);
+          ctx.fillRect(-3, -1, 3, 2);
         }
       } else if (facing === 'right') {
-        // RIGHT RAISING BLOCK STANCE: Angled side-profile shield wall extended right
-        ctx.translate(8, -1 + walkBob);
+        // RIGHT RAISING BLOCK STANCE: Large angled shield wall extended right (+12px)
+        ctx.translate(12, -2 + walkBob);
 
         // Protective energy deflection arc on right side
-        ctx.fillStyle = 'rgba(251, 191, 36, 0.25)';
+        ctx.fillStyle = 'rgba(251, 191, 36, 0.3)';
         ctx.beginPath();
-        ctx.arc(2, 0, 14, -Math.PI * 0.4, Math.PI * 0.4);
+        ctx.arc(3, 0, 16, -Math.PI * 0.45, Math.PI * 0.45);
         ctx.fill();
 
         // Forearm Strap holding shield from left side
         ctx.fillStyle = PALETTE.clothLeather;
-        ctx.fillRect(-6, -2, 5, 4);
+        ctx.fillRect(-8, -3, 6, 5);
         ctx.fillStyle = PALETTE.goldMid;
-        ctx.fillRect(-5, -2, 2, 4);
+        ctx.fillRect(-6, -3, 2, 5);
 
-        // Angled Side Profile Shield Plate (curved top and tapered bottom)
+        // Angled Side Profile Shield Plate (10px wide by 18px tall)
         ctx.fillStyle = shieldColor;
         ctx.beginPath();
-        ctx.moveTo(-3, -8);
-        ctx.lineTo(3, -6);
-        ctx.lineTo(3, 4);
-        ctx.lineTo(-2, 8);
-        ctx.lineTo(-4, 5);
-        ctx.lineTo(-1, 0);
+        ctx.moveTo(-4, -9);
+        ctx.lineTo(4, -7);
+        ctx.lineTo(4, 5);
+        ctx.lineTo(-2, 9);
+        ctx.lineTo(-5, 6);
+        ctx.lineTo(-2, 0);
         ctx.closePath();
         ctx.fill();
 
         // Outer Metallic Rim Guard facing right
         ctx.fillStyle = rimColor;
-        ctx.fillRect(2, -6, 2, 10);
+        ctx.fillRect(3, -7, 2, 12);
+        ctx.fillRect(-4, -8, 8, 2);
+        ctx.fillRect(-2, 8, 6, 2);
 
-        // Boss Stud jutting out to the right
+        // Boss Stud jutting far out to the right
         ctx.fillStyle = PALETTE.goldBright;
-        ctx.fillRect(3, -2, 3, 4);
+        ctx.fillRect(4, -2, 4, 5);
 
         // Heraldic Trim on angled plate
         ctx.fillStyle = isLegendary ? PALETTE.goldMid : PALETTE.ironLight;
-        ctx.fillRect(-1, -4, 2, 8);
+        ctx.fillRect(-1, -5, 2, 10);
 
         if (durRatio < 0.5) {
           ctx.fillStyle = PALETTE.voidBlack;
-          ctx.fillRect(-1, -1, 3, 1);
+          ctx.fillRect(0, -1, 3, 2);
         }
       } else if (facing === 'up') {
-        // REAR RAISING BLOCK STANCE: Shield raised high facing away into darkness
-        ctx.translate(0, -7 + walkBob);
+        // REAR RAISING BLOCK STANCE: Shield raised high facing away into darkness (north)
+        ctx.translate(0, -15 + walkBob);
 
-        ctx.fillStyle = 'rgba(251, 191, 36, 0.25)';
+        ctx.fillStyle = 'rgba(251, 191, 36, 0.3)';
         ctx.beginPath();
-        ctx.arc(0, 0, 14, 0, Math.PI * 2);
+        ctx.arc(0, -2, 16, Math.PI * 1.1, Math.PI * 1.9); // Barrier arc facing north
         ctx.fill();
 
-        // Back Planking of Raised Shield (Dark Oak Wood)
-        ctx.fillStyle = PALETTE.woodDark;
-        ctx.fillRect(-7, -7, 14, 13);
-        ctx.fillStyle = PALETTE.woodMid;
-        ctx.fillRect(-5, -6, 4, 11);
-        ctx.fillRect(1, -6, 4, 11);
+        // Large Heater/Kite Shield Body (16px wide by 16px tall)
+        ctx.fillStyle = shieldColor;
+        ctx.beginPath();
+        ctx.moveTo(-8, -8);
+        ctx.lineTo(8, -8);
+        ctx.lineTo(8, 2);
+        ctx.lineTo(0, 8);
+        ctx.lineTo(-8, 2);
+        ctx.closePath();
+        ctx.fill();
 
-        // Iron Frame & Cross Straps
-        ctx.strokeStyle = PALETTE.ironDark;
+        // Back Planking / Wood Grain Texture facing camera
+        ctx.fillStyle = PALETTE.woodDark;
+        ctx.fillRect(-7, -7, 14, 9);
+        ctx.fillStyle = PALETTE.woodMid;
+        ctx.fillRect(-5, -6, 4, 7);
+        ctx.fillRect(1, -6, 4, 7);
+
+        // Outer Bright Metallic Rim Frame
+        ctx.strokeStyle = rimColor;
         ctx.lineWidth = 1.5;
-        ctx.strokeRect(-7, -7, 14, 13);
+        ctx.stroke();
 
         // Leather Arm Loop & Bronze Brackets
         ctx.fillStyle = PALETTE.clothLeather;
-        ctx.fillRect(-6, -3, 12, 3);
+        ctx.fillRect(-6, -1, 12, 3);
         ctx.fillStyle = PALETTE.goldMid;
-        ctx.fillRect(-3, -3, 2, 3);
-        ctx.fillRect(1, -3, 2, 3);
+        ctx.fillRect(-3, -1, 2, 3);
+        ctx.fillRect(1, -1, 2, 3);
       } else {
         // DOWN / FORWARD RAISING BLOCK STANCE: Front face of heater shield
         ctx.translate(0, 3 + walkBob);
 
         // Active blocking protective aura glow
-        ctx.fillStyle = 'rgba(251, 191, 36, 0.25)';
+        ctx.fillStyle = 'rgba(251, 191, 36, 0.3)';
         ctx.beginPath();
-        ctx.arc(0, 0, 14, 0, Math.PI * 2);
+        ctx.arc(0, 0, 16, 0, Math.PI * 2);
         ctx.fill();
 
         // Shield Main Body (Kite / Heater Shape)
         ctx.fillStyle = shieldColor;
         ctx.beginPath();
-        ctx.moveTo(-7, -7);
-        ctx.lineTo(7, -7);
-        ctx.lineTo(7, 2);
-        ctx.lineTo(0, 8);
-        ctx.lineTo(-7, 2);
+        ctx.moveTo(-8, -8);
+        ctx.lineTo(8, -8);
+        ctx.lineTo(8, 3);
+        ctx.lineTo(0, 10);
+        ctx.lineTo(-8, 3);
         ctx.closePath();
         ctx.fill();
 
         // Metallic Rim Guard
         ctx.strokeStyle = rimColor;
-        ctx.lineWidth = 1.5;
+        ctx.lineWidth = 2;
         ctx.stroke();
 
         // Heraldic Cross / Emblem
         ctx.fillStyle = isLegendary ? PALETTE.goldMid : PALETTE.ironLight;
-        ctx.fillRect(-1, -5, 2, 10);
-        ctx.fillRect(-5, -2, 10, 2);
+        ctx.fillRect(-2, -6, 4, 12);
+        ctx.fillRect(-6, -2, 12, 4);
 
         // Center Iron Boss Stud
         ctx.fillStyle = PALETTE.goldBright;
-        ctx.fillRect(-2, -2, 4, 4);
+        ctx.fillRect(-3, -3, 6, 6);
 
         if (durRatio < 0.5) {
           ctx.fillStyle = PALETTE.voidBlack;
-          ctx.fillRect(-3, -1, 3, 1);
+          ctx.fillRect(-3, -1, 3, 2);
           ctx.fillRect(-1, 1, 2, 2);
         }
       }
       ctx.restore();
     } else {
-      // HELD AT REST - 4 DISTINCT DIRECTIONAL TEXTURES
+      // HELD AT REST - 4 DISTINCT LARGE DIRECTIONAL TEXTURES
       if (facing === 'down') {
         // 1. DOWN (Hero facing viewer): Left arm holding heater shield facing camera
-        const x = -12;
-        const y = -4 + walkBob;
+        const x = -13;
+        const y = -5 + walkBob;
 
-        // Front Face of Heater Shield
+        // Front Face of Heater Shield (12px wide by 15px tall)
         ctx.fillStyle = shieldColor;
         ctx.beginPath();
         ctx.moveTo(x, y);
-        ctx.lineTo(x + 6, y);
-        ctx.lineTo(x + 6, y + 8);
-        ctx.lineTo(x + 3, y + 12);
-        ctx.lineTo(x, y + 8);
+        ctx.lineTo(x + 7, y);
+        ctx.lineTo(x + 7, y + 10);
+        ctx.lineTo(x + 3.5, y + 15);
+        ctx.lineTo(x, y + 10);
         ctx.closePath();
         ctx.fill();
 
         // Metallic Rim
         ctx.strokeStyle = rimColor;
-        ctx.lineWidth = 1;
+        ctx.lineWidth = 1.5;
         ctx.stroke();
 
         // Heraldic Crest / Emblem
         ctx.fillStyle = isLegendary ? PALETTE.goldBright : PALETTE.ironLight;
-        ctx.fillRect(x + 2, y + 2, 2, 7);
-        ctx.fillRect(x + 1, y + 4, 4, 2);
+        ctx.fillRect(x + 2, y + 2, 3, 9);
+        ctx.fillRect(x + 1, y + 5, 5, 2);
 
         // Center Boss
         ctx.fillStyle = PALETTE.goldBright;
-        ctx.fillRect(x + 2, y + 4, 2, 2);
+        ctx.fillRect(x + 2, y + 5, 3, 3);
 
         if (durRatio < 0.5) {
           ctx.fillStyle = PALETTE.voidBlack;
-          ctx.fillRect(x + 1, y + 6, 3, 1);
+          ctx.fillRect(x + 1, y + 7, 3, 2);
         }
       } else if (facing === 'up') {
-        // 2. UP (Hero facing away into dungeon): Back of shield visible on left shoulder/arm
-        const x = -11;
-        const y = -5 + walkBob;
+        // 2. UP (Hero facing away into dungeon): LARGE SLUNG SHIELD ON BACK / LEFT SHOULDER
+        const x = -13;
+        const y = -8 + walkBob;
 
-        // Back Planking (Dark Oak Wood Texture)
-        ctx.fillStyle = PALETTE.woodDark;
-        ctx.fillRect(x, y, 6, 12);
-        ctx.fillStyle = PALETTE.woodMid;
-        ctx.fillRect(x + 1, y + 1, 2, 10);
-        ctx.fillRect(x + 4, y + 1, 1, 10);
-
-        // Iron Perimeter Frame & Corner Brackets
-        ctx.strokeStyle = PALETTE.ironDark;
-        ctx.lineWidth = 1;
-        ctx.strokeRect(x, y, 6, 12);
-
-        // Leather Arm Straps & Bronze Fastener Buckles
-        ctx.fillStyle = PALETTE.clothLeather;
-        ctx.fillRect(x, y + 3, 6, 2);
-        ctx.fillRect(x, y + 7, 6, 2);
-        ctx.fillStyle = PALETTE.goldMid;
-        ctx.fillRect(x + 2, y + 3, 2, 2);
-        ctx.fillRect(x + 2, y + 7, 2, 2);
-      } else if (facing === 'left') {
-        // 3. LEFT (Hero facing left): Shield held in FOREGROUND protecting left flank!
-        const x = -11;
-        const y = -5 + walkBob;
-
-        // Side Profile View of Curved Shield Plate
+        // LARGE Full-Sized Back-Slung Shield Body (14px wide by 16px tall)
         ctx.fillStyle = shieldColor;
         ctx.beginPath();
-        ctx.moveTo(x + 4, y);
-        ctx.lineTo(x, y + 2);
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + 14, y);
+        ctx.lineTo(x + 14, y + 10);
+        ctx.lineTo(x + 7, y + 16);
         ctx.lineTo(x, y + 10);
-        ctx.lineTo(x + 4, y + 12);
-        ctx.lineTo(x + 5, y + 10);
-        ctx.lineTo(x + 2, y + 6);
-        ctx.lineTo(x + 5, y + 2);
         ctx.closePath();
         ctx.fill();
 
-        // Forward Beveled Metallic Rim Guard
-        ctx.fillStyle = rimColor;
-        ctx.fillRect(x, y + 2, 2, 8);
-
-        // Gold Boss Profile
-        ctx.fillStyle = PALETTE.goldBright;
-        ctx.fillRect(x - 1, y + 5, 2, 2);
-
-        // Forearm Bracket
-        ctx.fillStyle = PALETTE.clothLeather;
-        ctx.fillRect(x + 3, y + 4, 3, 4);
-      } else {
-        // 4. RIGHT (Hero facing right): Shield on left arm in background/flank profile
-        const x = -8;
-        const y = -3 + walkBob;
-
-        // Side Profile Flank Edge
-        ctx.fillStyle = shieldColor;
-        ctx.fillRect(x, y, 4, 10);
-
-        // Dark Wood Backing Edge
+        // Dark Oak Wood Planking
         ctx.fillStyle = PALETTE.woodDark;
-        ctx.fillRect(x, y + 1, 1, 8);
+        ctx.fillRect(x + 1, y + 1, 12, 10);
+        ctx.fillStyle = PALETTE.woodMid;
+        ctx.fillRect(x + 2, y + 2, 4, 8);
+        ctx.fillRect(x + 8, y + 2, 4, 8);
 
-        // Outer Metallic Rim
+        // Bright Metallic Perimeter Rim Frame (makes back shield POP!)
+        ctx.strokeStyle = rimColor;
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Leather Cross-Straps & Bronze Rivets
+        ctx.fillStyle = PALETTE.clothLeather;
+        ctx.fillRect(x, y + 5, 14, 3);
+        ctx.fillStyle = PALETTE.goldBright;
+        ctx.fillRect(x + 2, y + 5, 2, 3);
+        ctx.fillRect(x + 10, y + 5, 2, 3);
+
+        // Center Iron Boss Stud on back
+        ctx.fillStyle = PALETTE.goldMid;
+        ctx.fillRect(x + 5, y + 5, 4, 3);
+      } else if (facing === 'left') {
+        // 3. LEFT (Hero facing left): BOLD PROMINENT FOREGROUND SHIELD WALL!
+        const x = -14;
+        const y = -6 + walkBob;
+
+        // Curved 3/4 Side Profile Shield Plate (11px wide by 17px tall)
+        ctx.fillStyle = shieldColor;
+        ctx.beginPath();
+        ctx.moveTo(x + 5, y);
+        ctx.lineTo(x, y + 3);
+        ctx.lineTo(x, y + 12);
+        ctx.lineTo(x + 5, y + 17);
+        ctx.lineTo(x + 11, y + 14);
+        ctx.lineTo(x + 8, y + 8);
+        ctx.lineTo(x + 11, y + 3);
+        ctx.closePath();
+        ctx.fill();
+
+        // Leading Metallic Rim Guard (3px wide bright edge facing left)
         ctx.fillStyle = rimColor;
-        ctx.fillRect(x + 3, y, 1, 10);
-        ctx.fillRect(x + 1, y, 3, 1);
-        ctx.fillRect(x + 1, y + 9, 3, 1);
+        ctx.fillRect(x, y + 3, 3, 10);
+        ctx.fillRect(x, y + 2, 6, 2);
+        ctx.fillRect(x, y + 12, 6, 2);
+
+        // Gold Boss Profile jutting left
+        ctx.fillStyle = PALETTE.goldBright;
+        ctx.fillRect(x - 2, y + 6, 3, 5);
+
+        // Vertical Heraldic Stripe
+        ctx.fillStyle = isLegendary ? PALETTE.goldBright : PALETTE.ironBright;
+        ctx.fillRect(x + 5, y + 3, 2, 10);
+
+        // Leather Forearm Strap Wrap connecting back to arm
+        ctx.fillStyle = PALETTE.clothLeather;
+        ctx.fillRect(x + 7, y + 5, 4, 5);
+      } else {
+        // 4. RIGHT (Hero facing right): BOLD PROMINENT SHIELD ON RIGHT FLANK/ARM!
+        const x = 3;
+        const y = -6 + walkBob;
+
+        // Curved 3/4 Side Profile Shield Plate (11px wide by 17px tall)
+        ctx.fillStyle = shieldColor;
+        ctx.beginPath();
+        ctx.moveTo(x + 6, y);
+        ctx.lineTo(x + 11, y + 3);
+        ctx.lineTo(x + 11, y + 12);
+        ctx.lineTo(x + 6, y + 17);
+        ctx.lineTo(x, y + 14);
+        ctx.lineTo(x + 3, y + 8);
+        ctx.lineTo(x, y + 3);
+        ctx.closePath();
+        ctx.fill();
+
+        // Outer Metallic Rim Guard (3px wide bright edge facing right)
+        ctx.fillStyle = rimColor;
+        ctx.fillRect(x + 8, y + 3, 3, 10);
+        ctx.fillRect(x + 5, y + 2, 6, 2);
+        ctx.fillRect(x + 5, y + 12, 6, 2);
+
+        // Gold Boss Profile jutting right
+        ctx.fillStyle = PALETTE.goldBright;
+        ctx.fillRect(x + 10, y + 6, 3, 5);
+
+        // Vertical Heraldic Stripe
+        ctx.fillStyle = isLegendary ? PALETTE.goldBright : PALETTE.ironBright;
+        ctx.fillRect(x + 4, y + 3, 2, 10);
+
+        // Leather Forearm Strap Wrap
+        ctx.fillStyle = PALETTE.clothLeather;
+        ctx.fillRect(x, y + 5, 4, 5);
       }
     }
     ctx.restore();
