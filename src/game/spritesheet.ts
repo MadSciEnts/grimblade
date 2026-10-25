@@ -441,40 +441,42 @@ export class SpriteSheetManager {
   private generateEnemySheet() {
     const [canvas, ctx] = this.createCanvas(512, 256);
 
-    // Row 0: True Pixelated Gelatinous Acid Slimes
-    for (let i = 0; i < 4; i++) {
-      const cx = i * 32 + 16;
-      const cy = 16;
-      const squash = i % 2 === 1 ? 1.15 : 0.88;
+    // Row 0: True Pixelated Gelatinous Acid Slimes (Sprite Sheet: Idle[0-1], Move[2-3], Windup/Vibrate[4-7])
+    // Helper for slime body
+    const drawSlimeFrame = (ctx: CanvasRenderingContext2D, cx: number, cy: number, frameType: 'idle' | 'move' | 'vibrate', frameIdx: number) => {
+      const wobble = frameType === 'vibrate' ? (frameIdx % 2 === 0 ? 3 : -3) : 0;
+      const stretch = frameType === 'move' ? (frameIdx % 2 === 0 ? 1.2 : 0.8) : 1;
       
-      // Slime Puddle Shadow Base
+      // Slime Shadow (Asymmetric Blob)
       ctx.fillStyle = '#0f291e';
-      ctx.fillRect(cx - 11, cy + 6, 22, 6);
+      ctx.fillRect(cx - 8 + wobble, cy + 8, 16, 4);
       
-      // Translucent Gel Body (Darker Underside)
+      // Gel Body (Irregular Pixelated Blob Shape)
       ctx.fillStyle = PALETTE.slimeAcidDark;
-      ctx.fillRect(cx - 10, cy + 2, 20, 8);
-      ctx.fillRect(cx - 8, cy - 2, 16, 6);
+      ctx.fillRect(cx - 9 * stretch, cy - 1, 18 * stretch, 7);
+      ctx.fillRect(cx - 7 * stretch, cy - 3, 14 * stretch, 11);
+      ctx.fillRect(cx - 5 * stretch, cy - 5, 10 * stretch, 13);
       
-      // Inner Jelly Core
       ctx.fillStyle = PALETTE.slimeAcid;
-      ctx.fillRect(cx - 8, cy + 1, 16, 6);
+      ctx.fillRect(cx - 7 * stretch, cy - 2, 14 * stretch, 5);
+      ctx.fillRect(cx - 5 * stretch, cy - 4, 10 * stretch, 7);
+      
+      // Core Glint (Pixelated)
       ctx.fillStyle = PALETTE.slimeAcidGlow;
-      ctx.fillRect(cx - 5, cy + 2, 10, 3);
-      
-      // Glossy Specular Highlight (Top Left)
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(cx - 5, cy - 3, 4, 2);
-      ctx.fillRect(cx - 6, cy - 2, 2, 3);
-      
-      // Pixel Eyes
+      ctx.fillRect(cx - 3 + wobble, cy - 3, 2, 1);
+
+      // Pixel Eyes (move with animation)
       ctx.fillStyle = PALETTE.voidBlack;
-      ctx.fillRect(cx - 4, cy + 1, 2, 3);
-      ctx.fillRect(cx + 2, cy + 1, 2, 3);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(cx - 4, cy + 1, 1, 1);
-      ctx.fillRect(cx + 2, cy + 1, 1, 1);
-    }
+      ctx.fillRect(cx - 4 + wobble, cy - 2, 2, 2);
+      ctx.fillRect(cx + 1 + wobble, cy - 2, 2, 2);
+    };
+
+    // Idle
+    for (let i = 0; i < 2; i++) drawSlimeFrame(ctx, i * 32 + 16, 16, 'idle', i);
+    // Move
+    for (let i = 0; i < 2; i++) drawSlimeFrame(ctx, (i + 2) * 32 + 16, 16, 'move', i);
+    // Lunge Windup / Vibrate
+    for (let i = 0; i < 4; i++) drawSlimeFrame(ctx, i * 32 + 16, 48, 'vibrate', i);
 
     // Row 1 (y = 32): Distinctly Bipedal Goblin Warriors
     for (let i = 0; i < 4; i++) {

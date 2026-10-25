@@ -177,6 +177,11 @@ export class CombatManager {
     // Trigger enemy melee attack strike visual
     enemy.attackVisualTimer = 0.22;
     enemy.attackVisualAngle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+    
+    // Add visual arc for armed enemies
+    if (enemy.type !== 'slime') {
+      combatManager.addFloatingText(enemy.x, enemy.y - 10, 'ARC!', '#ffffff', 10);
+    }
 
     // Check if player has Shield Raised facing the enemy!
     let blocked = false;

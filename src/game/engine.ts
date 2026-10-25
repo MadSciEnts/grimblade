@@ -480,11 +480,36 @@ export class GameEngine {
           // Wounded enemies have slightly slower attack recovery due to physical trauma
           const effectiveCooldown = enemy.attackCooldown * (1.0 + (1 - healthPct) * 0.6);
 
-          // Attack when within range
-          enemy.lastAttackTime += dt;
-          if (dist <= enemy.attackRange + 4 && enemy.lastAttackTime >= effectiveCooldown) {
-            enemy.lastAttackTime = 0;
-            combatManager.handleEnemyAttack(enemy, targetPlayer, (s) => (this.camera.shake = s));
+          // Attack windup forecast (1 second anticipation)
+          if (enemy.state === 'idle' && dist <= enemy.attackRange + 4 && enemy.lastAttackTime >= effectiveCooldown) {
+            enemy.state = 'windup';
+            enemy.windupTimer = 1.0;
+            enemy.lastAttackTime = 0; // Reset cooldown early to track windup
+            
+            // Trigger visual anticipation cue based on enemy type
+            combatManager.addFloatingText(enemy.x, enemy.y - 20, '!', '#ffffff', 14);
+          }
+
+          if (enemy.state === 'windup') {
+            enemy.windupTimer -= dt;
+            
+            // Visual indicators for windup
+            if (Math.random() < 0.3) {
+              if (enemy.type === 'slime') {
+                enemy.x += (Math.random() - 0.5) * 4;
+                enemy.y += (Math.random() - 0.5) * 4;
+              } else {
+                enemy.hitFlashTimer = 0.05; // Flash effect
+              }
+            }
+
+            if (enemy.windupTimer <= 0) {
+              enemy.state = 'attack';
+              combatManager.handleEnemyAttack(enemy, targetPlayer, (s) => (this.camera.shake = s));
+              enemy.state = 'idle';
+            }
+          } else {
+            enemy.lastAttackTime += dt;
           }
 
           // Bleeding drops while moving wounded

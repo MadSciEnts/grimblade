@@ -1446,39 +1446,35 @@ class TextureAtlas {
 
     switch (enemy.type) {
       case 'slime': {
-        // Green Acid Slime with wobble squash
-        const squash = enemy.animFrame % 2 === 1 ? 1.2 : 0.9;
-        ctx.fillStyle = PALETTE.slimeAcidDark;
-        ctx.beginPath();
-        ctx.ellipse(0, 4, 11 * squash, 8 / squash, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = PALETTE.slimeAcid;
-        ctx.beginPath();
-        ctx.ellipse(0, 2, 9 * squash, 6 / squash, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Slime eyes
-        if (damageRatio < 0.7) {
-          ctx.fillStyle = PALETTE.voidBlack;
-          ctx.fillRect(-4, -1, 2, 3);
-          ctx.fillRect(2, -1, 2, 3);
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(-4, -1, 1, 1);
-          ctx.fillRect(2, -1, 1, 1);
+        // Pixelated Gelatinous Acid Slime using pre-generated sprite sheet
+        // Row 0: Idle [0-1], Move [2-3]; Row 1: Vibrate [0-3]
+        const sheet = spriteSheets.enemySheet;
+        if (sheet) {
+          let sx = 0;
+          let sy = 0;
+          if (enemy.state === 'windup') {
+            // Windup: Row 1
+            sx = (enemy.animFrame % 4) * 32;
+            sy = 32;
+          } else {
+            // Idle: Row 0, frame 0-1; Move: Row 0, frame 2-3
+            const frameOffset = enemy.state === 'idle' ? 0 : 2;
+            sx = ((enemy.animFrame % 2) + frameOffset) * 32;
+            sy = 0;
+          }
+          ctx.drawImage(sheet, sx, sy, 32, 32, -16, -16, 32, 32);
         }
-
-        // PROPORTIONAL CHUNK REMOVAL ON SLIME
+        
+        // PROPORTIONAL CHUNK REMOVAL OVERLAY
         if (damageRatio >= 0.20) {
-          // Left lower lobe bitten/sheared away with dark acid cavity
           ctx.fillStyle = PALETTE.voidBlack;
           ctx.fillRect(-9, 1, 4, 5);
           ctx.fillStyle = PALETTE.slimeAcidDark;
           ctx.fillRect(-8, 3, 3, 4);
           ctx.fillStyle = PALETTE.slimeAcidGlow;
-          ctx.fillRect(-10, 6, 2, 2); // Dripping acid droplet
+          ctx.fillRect(-10, 6, 2, 2);
         }
         if (damageRatio >= 0.45) {
-          // Top right crest hacked off, exposed leaking core
           ctx.fillStyle = PALETTE.voidBlack;
           ctx.fillRect(3, -4, 5, 5);
           ctx.fillStyle = '#10281b';
@@ -1487,12 +1483,11 @@ class TextureAtlas {
           ctx.fillRect(7, -1, 2, 2);
         }
         if (damageRatio >= 0.70) {
-          // Over 50% collapsed into a ragged, bubbling acid stump with exposed necrotic nucleus
           ctx.fillStyle = PALETTE.voidBlack;
           ctx.fillRect(-6, -6, 12, 6);
           ctx.fillRect(2, 0, 8, 8);
           ctx.fillStyle = '#0a1a12';
-          ctx.fillRect(-3, 0, 6, 5); // Necrotic core
+          ctx.fillRect(-3, 0, 6, 5);
           ctx.fillStyle = PALETTE.slimeAcidGlow;
           ctx.fillRect(-5, 4, 2, 2);
           ctx.fillRect(4, 5, 2, 2);

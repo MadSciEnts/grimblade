@@ -153,16 +153,24 @@ export function generateDungeonLevel(depth: number): {
 
   // GUARANTEED WALL-MOUNTED TORCHES: Scan wall tiles (2 or 3) that have a floor immediately below them
   const torchPositions: { x: number; y: number }[] = [];
+  const MIN_TORCH_DIST = TILE_SIZE * 1.5;
+
   for (let y = 0; y < height - 1; y++) {
     for (let x = 0; x < width; x++) {
       if ((tiles[y][x] === 2 || tiles[y][x] === 3) && tiles[y + 1][x] === 1) {
-        // Place torch on this wall tile, slightly offset toward the center
-        // Only pick roughly every 5th or 6th valid wall tile to space them out nicely
-        if ((x * 7 + y * 13) % 7 === 0) {
-          torchPositions.push({
-            x: x * TILE_SIZE + TILE_SIZE / 2,
-            y: y * TILE_SIZE + TILE_SIZE / 2,
-          });
+        const tx = x * TILE_SIZE + TILE_SIZE / 2;
+        const ty = y * TILE_SIZE + TILE_SIZE / 4;
+        
+        let tooClose = false;
+        for (const tp of torchPositions) {
+          if (Math.hypot(tp.x - tx, tp.y - ty) < MIN_TORCH_DIST) {
+            tooClose = true;
+            break;
+          }
+        }
+        
+        if (!tooClose && (x * 7 + y * 13) % 7 === 0) {
+          torchPositions.push({ x: tx, y: ty });
         }
       }
     }
@@ -173,15 +181,30 @@ export function generateDungeonLevel(depth: number): {
     const roomTorches = torchPositions.filter(
       (tp) => tp.x >= r.x * TILE_SIZE && tp.x <= (r.x + r.w) * TILE_SIZE && tp.y >= (r.y - 1) * TILE_SIZE && tp.y <= (r.y + r.h) * TILE_SIZE
     );
-    if (roomTorches.length === 0) {
-      torchPositions.push({
-        x: (r.x + 2) * TILE_SIZE,
-        y: (r.y + 1) * TILE_SIZE,
-      });
-      torchPositions.push({
-        x: (r.x + r.w - 3) * TILE_SIZE,
-        y: (r.y + 1) * TILE_SIZE,
-      });
+    if (roomTorches.length < 2) {
+      // Find valid wall/column tiles on the room periphery
+      for (let y = r.y - 1; y < r.y + r.h + 1; y++) {
+        for (let x = r.x - 1; x < r.x + r.w + 1; x++) {
+          if ((tiles[y][x] === 2 || tiles[y][x] === 3 || tiles[y][x] === 4)) {
+            const tx = x * TILE_SIZE + TILE_SIZE / 2;
+            const ty = y * TILE_SIZE + TILE_SIZE / 4;
+            
+            let tooClose = false;
+            for (const tp of torchPositions) {
+              if (Math.hypot(tp.x - tx, tp.y - ty) < MIN_TORCH_DIST) {
+                tooClose = true;
+                break;
+              }
+            }
+
+            if (!tooClose && torchPositions.length < 40) {
+              torchPositions.push({ x: tx, y: ty });
+              if (torchPositions.filter(tp => tp.x >= r.x * TILE_SIZE && tp.x <= (r.x + r.w) * TILE_SIZE && tp.y >= (r.y - 1) * TILE_SIZE && tp.y <= (r.y + r.h) * TILE_SIZE).length >= 2) break;
+            }
+          }
+        }
+        if (torchPositions.filter(tp => tp.x >= r.x * TILE_SIZE && tp.x <= (r.x + r.w) * TILE_SIZE && tp.y >= (r.y - 1) * TILE_SIZE && tp.y <= (r.y + r.h) * TILE_SIZE).length >= 2) break;
+      }
     }
   }
 

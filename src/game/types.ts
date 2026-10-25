@@ -100,6 +100,7 @@ export interface Enemy {
   animTimer: number;
   attackVisualTimer?: number;
   attackVisualAngle?: number;
+  windupTimer: number; 
   isBoss?: boolean;
   name: string;
 }
