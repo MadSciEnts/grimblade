@@ -1,27 +1,36 @@
 # Grimblade ARPG - Android APK Build Instructions
 
-## Quickest Method 1: Instant Android Install (Recommended)
-You don't need Android Studio to play this on Android!
-1. Open this game in Google Chrome on your Android phone.
-2. Tap the 3 dots in the top right of Chrome (or tap the in-game 'Install PWA' button).
-3. Select "Install App" or "Add to Home screen".
-4. The game will install directly to your app drawer with the full custom icon, standalone fullscreen landscape mode, and 60fps hardware acceleration!
+## Quickest Method: Instant PWA Install (No Android Studio required)
+1. Open the web app URL in Google Chrome on your Android phone.
+2. Tap the 3 dots menu -> "Install app" or "Add to Home screen".
+3. The game installs as a native-feeling full-screen app with icon and 60fps performance!
 
 ---
 
-## Method 2: Compile Native Android .APK with Capacitor & Android Studio
-To compile the official release APK file:
+## Compiling Native Android .APK with Capacitor & Android Studio
 
-1. Unzip this package.
-2. In your terminal, run:
+Because native Android folders (`android/` and `gradlew.bat`) are generated on demand by Capacitor, follow these exact steps in your project root terminal on your computer:
+
+1. **Install dependencies:**
    ```bash
-   npm install --legacy-peer-deps
+   npm install
+   ```
+
+2. **Build web assets & generate/sync the Android native project (this creates the `android` folder and `gradlew.bat`):**
+   ```bash
+   npm run android:init
    npm run android:sync
+   ```
+   *(If prompted whether to overwrite existing Android platform, choose Yes or keep existing).*
+
+3. **Open the generated project in Android Studio:**
+   ```bash
    npm run android:open
    ```
-   *(Note: `npm run android:sync` automatically builds the web bundle into `dist/` before syncing to Capacitor, preventing any "Could not find web assets directory" errors).*
-3. Android Studio will open the project.
-4. Go to **Build** > **Build Bundle(s) / APK(s)** > **Build APK(s)**.
-5. Your release APK will be generated at:
-   `android/app/build/outputs/apk/debug/app-debug.apk`
-6. Transfer `app-debug.apk` to your Android phone and install!
+   *(Or open Android Studio manually, click **File > Open**, and select the **`android`** folder inside your project directory).*
+
+4. **Build APK in Android Studio:**
+   - Wait for Gradle sync to complete.
+   - Click **Build** > **Build Bundle(s) / APK(s)** > **Build APK(s)**.
+   - Your debug APK will be created at:
+     `android/app/build/outputs/apk/debug/app-debug.apk`
