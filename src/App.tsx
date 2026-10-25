@@ -9,8 +9,6 @@ import { TitleScreen } from './components/TitleScreen';
 import { HUD } from './components/HUD';
 import { VirtualControls } from './components/VirtualControls';
 import { InventoryModal } from './components/InventoryModal';
-import { QuestsModal } from './components/QuestsModal';
-import { ApkExportModal } from './components/ApkExportModal';
 import { SpriteSheetModal } from './components/SpriteSheetModal';
 import { gameEngine } from './game/engine';
 import { EquipmentItem, Player, Quest } from './game/types';
@@ -27,8 +25,6 @@ export default function App() {
 
   // Active Modals
   const [showInventory, setShowInventory] = useState(false);
-  const [showQuests, setShowQuests] = useState(false);
-  const [showApkExport, setShowApkExport] = useState(false);
   const [showSpriteSheets, setShowSpriteSheets] = useState(false);
 
   // Ambient lighting preset state ('moody' by default for dark fantasy atmosphere)
@@ -159,7 +155,7 @@ export default function App() {
       {screen === 'TITLE' && (
         <TitleScreen
           onStartGame={handleStartGame}
-          onOpenApkExport={() => setShowApkExport(true)}
+          onOpenApkExport={() => {}}
           onOpenSpriteSheets={() => setShowSpriteSheets(true)}
         />
       )}
@@ -177,9 +173,8 @@ export default function App() {
             onCycleAmbientLight={() => setAmbientPreset(gameEngine.cycleAmbientLight())}
             onToggleVirtualControls={() => setVirtualControlsVisible(!virtualControlsVisible)}
             onOpenInventory={() => setShowInventory(true)}
-            onOpenQuests={() => setShowQuests(true)}
             onOpenSpriteSheets={() => setShowSpriteSheets(true)}
-            onOpenApkExport={() => setShowApkExport(true)}
+            onClaimQuest={handleClaimQuest}
           />
 
           {/* On-Screen Mobile Virtual Controls (Joystick & Action Buttons) */}
@@ -241,19 +236,6 @@ export default function App() {
           onEquipItem={handleEquipItem}
           onRepairAll={handleRepairAll}
         />
-      )}
-
-      {showQuests && players[0] && (
-        <QuestsModal
-          quests={quests}
-          player={players[0]}
-          onClose={() => setShowQuests(false)}
-          onClaimQuest={handleClaimQuest}
-        />
-      )}
-
-      {showApkExport && (
-        <ApkExportModal onClose={() => setShowApkExport(false)} />
       )}
 
       {showSpriteSheets && (

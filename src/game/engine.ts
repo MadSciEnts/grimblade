@@ -398,6 +398,9 @@ export class GameEngine {
         enemy.stunTimer -= dt;
         if (enemy.stunTimer <= 0) enemy.isStunned = false;
       }
+      if (enemy.attackVisualTimer && enemy.attackVisualTimer > 0) {
+        enemy.attackVisualTimer -= dt;
+      }
 
       // Find closest living player
       let targetPlayer: Player | null = null;
@@ -421,15 +424,37 @@ export class GameEngine {
         const currentSpeed = enemy.speed * speedMultiplier;
 
         if (dist < 180) {
-          // Chase Player
           const angle = Math.atan2(targetPlayer.y - enemy.y, targetPlayer.x - enemy.x);
-          enemy.vx += (Math.cos(angle) * currentSpeed - enemy.vx) * 0.18;
-          enemy.vy += (Math.sin(angle) * currentSpeed - enemy.vy) * 0.18;
 
-          if (Math.abs(enemy.vx) > Math.abs(enemy.vy)) {
-            enemy.facing = enemy.vx > 0 ? 'right' : 'left';
+          // Facing direction
+          if (Math.abs(Math.cos(angle)) > Math.abs(Math.sin(angle))) {
+            enemy.facing = Math.cos(angle) > 0 ? 'right' : 'left';
           } else {
-            enemy.facing = enemy.vy > 0 ? 'down' : 'up';
+            enemy.facing = Math.sin(angle) > 0 ? 'down' : 'up';
+          }
+
+          // STRIKE DISTANCE: Enemies approach to attack range, but maintain physical distance
+          const desiredStrikeDist = Math.max(16, enemy.attackRange * 0.75);
+
+          if (dist > desiredStrikeDist + 4) {
+            // Approach towards strike radius point relative to player
+            const targetX = targetPlayer.x - Math.cos(angle) * desiredStrikeDist;
+            const targetY = targetPlayer.y - Math.sin(angle) * desiredStrikeDist;
+            const moveAngle = Math.atan2(targetY - enemy.y, targetX - enemy.x);
+            enemy.vx += (Math.cos(moveAngle) * currentSpeed - enemy.vx) * 0.18;
+            enemy.vy += (Math.sin(moveAngle) * currentSpeed - enemy.vy) * 0.18;
+          } else {
+            // Within strike range: hold position and don't stack on top of player
+            enemy.vx *= 0.6;
+            enemy.vy *= 0.6;
+          }
+
+          // HARD RADIUS PUSH-BACK: Prevent enemies from reaching zero distance / stacking on top of player
+          const minSeparation = (enemy.radius || 10) + 12; // Player radius ~ 10
+          if (dist < minSeparation && dist > 0.001) {
+            const overlap = minSeparation - dist;
+            enemy.x -= Math.cos(angle) * overlap * 0.45;
+            enemy.y -= Math.sin(angle) * overlap * 0.45;
           }
 
           // Wounded enemies have slightly slower attack recovery due to physical trauma
@@ -437,7 +462,7 @@ export class GameEngine {
 
           // Attack when within range
           enemy.lastAttackTime += dt;
-          if (dist <= enemy.attackRange && enemy.lastAttackTime >= effectiveCooldown) {
+          if (dist <= enemy.attackRange + 4 && enemy.lastAttackTime >= effectiveCooldown) {
             enemy.lastAttackTime = 0;
             combatManager.handleEnemyAttack(enemy, targetPlayer, (s) => (this.camera.shake = s));
           }
@@ -675,12 +700,38 @@ export class GameEngine {
       });
     });
 
-    // Enemies with Dynamic Normal-Mapped Lighting
+    // Enemies with Dynamic Normal-Mapped Lighting & Melee Strike Visuals
     this.enemies.forEach((enemy) => {
       renderList.push({
         y: enemy.y,
         draw: () => {
           textureAtlas.renderEnemyWithLighting(ctx, enemy, lights);
+
+          // Draw Enemy Melee Strike Visuals (Claw / Slash Arc)
+          if (enemy.attackVisualTimer && enemy.attackVisualTimer > 0 && enemy.attackVisualAngle !== undefined) {
+            ctx.save();
+            ctx.translate(enemy.x, enemy.y);
+            ctx.rotate(enemy.attackVisualAngle);
+
+            const progress = enemy.attackVisualTimer / 0.22;
+            ctx.globalAlpha = Math.min(1.0, progress * 1.5);
+
+            // Crimson / Green / Slate claw slash arc
+            ctx.strokeStyle = enemy.type === 'slime' ? '#4ade80' : enemy.type === 'skeleton' ? '#cbd5e1' : '#ef4444';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, 0, Math.max(18, enemy.attackRange * 0.85), -0.6, 0.6);
+            ctx.stroke();
+
+            // Inner white claw streak marks
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(0, 0, Math.max(14, enemy.attackRange * 0.7), -0.4, 0.4);
+            ctx.stroke();
+
+            ctx.restore();
+          }
         },
       });
     });
@@ -834,7 +885,7 @@ export class GameEngine {
         x: p.x,
         y: p.y,
         z: 24,
-        radius: 155,
+        radius: 160,
         intensity: 1.15,
         r: 254,
         g: 220,
@@ -843,15 +894,27 @@ export class GameEngine {
     }
 
     if (this.dungeon) {
-      const animFlicker = Math.floor(Date.now() / 150) % 3;
-      for (const torch of this.dungeon.map.torchPositions) {
+      const time = performance.now() / 1000;
+      for (let i = 0; i < this.dungeon.map.torchPositions.length; i++) {
+        const torch = this.dungeon.map.torchPositions[i];
         if (Math.abs(torch.x - this.camera.x) > w / 2 + 100 || Math.abs(torch.y - this.camera.y) > h / 2 + 100) continue;
+
+        // Per-torch independent flame phase timing & light position jitter
+        const torchSeed = torch.x * 12.9898 + torch.y * 78.233;
+        const phase1 = Math.sin(time * 7.2 + torchSeed);
+        const phase2 = Math.cos(time * 11.4 + torchSeed * 1.3);
+        const torchRadius = 92 + phase1 * 7 + phase2 * 4;
+
+        // Flame light origin jumps/jitters slightly within torch
+        const jitterX = Math.sin(time * 13.8 + torchSeed) * 2.0;
+        const jitterY = Math.cos(time * 16.2 + torchSeed) * 2.0;
+
         lights.push({
-          x: torch.x,
-          y: torch.y - 4,
+          x: torch.x + jitterX,
+          y: torch.y - 4 + jitterY,
           z: 26,
-          radius: 95 + animFlicker * 5,
-          intensity: 1.35,
+          radius: torchRadius,
+          intensity: 1.25 + phase1 * 0.12,
           r: 251,
           g: 146,
           b: 60,
@@ -945,7 +1008,9 @@ export class GameEngine {
 
                 // Lambertian normal response: N · L
                 const ndotl = normObj.nx * lx + normObj.ny * ly + normObj.nz * lz;
-                const atten = Math.max(0, 1 - dist / light.radius);
+                // Soft quadratic attenuation decay
+                const distRatio = Math.min(1.0, dist / light.radius);
+                const atten = (1.0 - distRatio) * (1.0 - distRatio);
 
                 if (ndotl > 0) {
                   const irradiance = ndotl * atten * light.intensity;
@@ -1035,7 +1100,8 @@ export class GameEngine {
 
             const dot = nx * lx + ny * ly + nz * lz;
             const ndotl = (dot + 0.4) / 1.4; // Half-Lambert wrap lighting so sides react dynamically
-            const atten = Math.max(0, 1 - dist / light.radius);
+            const distRatio = Math.min(1.0, dist / light.radius);
+            const atten = (1.0 - distRatio) * (1.0 - distRatio);
 
             const irradiance = ndotl * atten * light.intensity;
             totalDirect += irradiance;
@@ -1128,19 +1194,30 @@ export class GameEngine {
       lCtx.fill();
     }
 
-    // Torch sconce illumination
-    const animFlicker = Math.floor(Date.now() / 150) % 3;
-    for (const torch of this.dungeon.map.torchPositions) {
-      const sx = torch.x - this.camera.x + w / 2;
-      const sy = torch.y - this.camera.y + h / 2;
+    // Torch sconce illumination with independent flicker & soft falloff
+    const time = performance.now() / 1000;
+    for (let i = 0; i < this.dungeon.map.torchPositions.length; i++) {
+      const torch = this.dungeon.map.torchPositions[i];
+      const torchSeed = torch.x * 12.9898 + torch.y * 78.233;
+      const phase1 = Math.sin(time * 7.2 + torchSeed);
+
+      const jitterX = Math.sin(time * 13.8 + torchSeed) * 2.0;
+      const jitterY = Math.cos(time * 16.2 + torchSeed) * 2.0;
+
+      const torchX = torch.x + jitterX;
+      const torchY = torch.y - 4 + jitterY;
+
+      const sx = torchX - this.camera.x + w / 2;
+      const sy = torchY - this.camera.y + h / 2;
 
       // Viewport culling
       if (sx < -120 || sx > w + 120 || sy < -120 || sy > h + 120) continue;
 
-      const torchRadius = 88 + animFlicker * 5;
-      const torchGrad = lCtx.createRadialGradient(sx, sy, 8, sx, sy, torchRadius);
-      torchGrad.addColorStop(0, 'rgba(0, 0, 0, 0.95)');
-      torchGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.55)');
+      const torchRadius = 92 + phase1 * 7;
+      const torchGrad = lCtx.createRadialGradient(sx, sy, 4, sx, sy, torchRadius);
+      torchGrad.addColorStop(0, 'rgba(0, 0, 0, 0.98)');
+      torchGrad.addColorStop(0.35, 'rgba(0, 0, 0, 0.75)');
+      torchGrad.addColorStop(0.7, 'rgba(0, 0, 0, 0.35)');
       torchGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
       lCtx.fillStyle = torchGrad;
       lCtx.beginPath();
@@ -1154,18 +1231,30 @@ export class GameEngine {
 
     // 4. Warm amber fire glow in torches using 'lighter'
     ctx.globalCompositeOperation = 'lighter';
-    for (const torch of this.dungeon.map.torchPositions) {
-      const grad = ctx.createRadialGradient(torch.x, torch.y, 4, torch.x, torch.y, 75 + animFlicker * 4);
+    for (let i = 0; i < this.dungeon.map.torchPositions.length; i++) {
+      const torch = this.dungeon.map.torchPositions[i];
+      const torchSeed = torch.x * 12.9898 + torch.y * 78.233;
+      const phase1 = Math.sin(time * 7.2 + torchSeed);
+      const animFrame = Math.floor((time * 8.0 + torchSeed) % 3);
+
+      const jitterX = Math.sin(time * 13.8 + torchSeed) * 2.0;
+      const jitterY = Math.cos(time * 16.2 + torchSeed) * 2.0;
+
+      const torchX = torch.x + jitterX;
+      const torchY = torch.y + jitterY;
+
+      const grad = ctx.createRadialGradient(torchX, torchY, 4, torchX, torchY, 78 + phase1 * 6);
       grad.addColorStop(0, 'rgba(251, 146, 60, 0.38)');
-      grad.addColorStop(0.5, 'rgba(234, 88, 12, 0.15)');
+      grad.addColorStop(0.45, 'rgba(234, 88, 12, 0.18)');
+      grad.addColorStop(0.8, 'rgba(180, 50, 10, 0.05)');
       grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.arc(torch.x, torch.y, 80, 0, Math.PI * 2);
+      ctx.arc(torchX, torchY, 80, 0, Math.PI * 2);
       ctx.fill();
 
-      // Sconce sprite
-      const torchImg = textureAtlas.get(`torch_${animFlicker}`);
+      // Sconce sprite at fixed position on wall
+      const torchImg = textureAtlas.get(`torch_${animFrame}`);
       if (torchImg) {
         ctx.drawImage(torchImg, torch.x - 8, torch.y - 12);
       }

@@ -174,6 +174,10 @@ export class CombatManager {
   ) {
     if (player.isDead || player.iFrames > 0) return;
 
+    // Trigger enemy melee attack strike visual
+    enemy.attackVisualTimer = 0.22;
+    enemy.attackVisualAngle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
+
     // Check if player has Shield Raised facing the enemy!
     let blocked = false;
     if (player.isShielding && player.equipment.shield.durability > 0) {

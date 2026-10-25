@@ -32,9 +32,8 @@ interface HUDProps {
   onCycleAmbientLight: () => void;
   onToggleVirtualControls: () => void;
   onOpenInventory: () => void;
-  onOpenQuests: () => void;
   onOpenSpriteSheets: () => void;
-  onOpenApkExport: () => void;
+  onClaimQuest?: (questId: string) => void;
 }
 
 export const HUD: React.FC<HUDProps> = ({
@@ -47,12 +46,11 @@ export const HUD: React.FC<HUDProps> = ({
   onCycleAmbientLight,
   onToggleVirtualControls,
   onOpenInventory,
-  onOpenQuests,
   onOpenSpriteSheets,
-  onOpenApkExport,
+  onClaimQuest,
 }) => {
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
-  const [questsExpanded, setQuestsExpanded] = useState(false);
+  const [questsExpanded, setQuestsExpanded] = useState(true);
 
   // Interactively draggable quest tracker state
   const [questPos, setQuestPos] = useState<{ x: number; y: number } | null>(null);
@@ -83,7 +81,7 @@ export const HUD: React.FC<HUDProps> = ({
       didDrag.current = true;
     }
 
-    const newX = Math.max(8, Math.min(window.innerWidth - 230, dragOrigin.current.startX + dx));
+    const newX = Math.max(8, Math.min(window.innerWidth - 250, dragOrigin.current.startX + dx));
     const newY = Math.max(50, Math.min(window.innerHeight - 80, dragOrigin.current.startY + dy));
     setQuestPos({ x: newX, y: newY });
   };
@@ -190,7 +188,7 @@ export const HUD: React.FC<HUDProps> = ({
           <span className="text-[11px] text-slate-300 font-mono">Floor {currentFloor} · Zelda 3 &amp; Diablo ARPG</span>
         </div>
 
-        {/* Right: Quick Action Buttons (Inventory, Quests, Sprites, Controls, APK, Mute) */}
+        {/* Right: Quick Action Buttons (Inventory, Quests List, Sprites, Controls, Mute) */}
         <div className="flex items-center gap-1.5 pointer-events-auto">
           {/* Inventory Button */}
           <button
@@ -202,11 +200,15 @@ export const HUD: React.FC<HUDProps> = ({
             <span className="hidden md:inline">Gear</span>
           </button>
 
-          {/* Quests Button */}
+          {/* Quests List Toggle Button */}
           <button
-            onClick={onOpenQuests}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#181113] border border-red-900/60 text-red-200 text-xs font-medium hover:bg-red-950/40 active:scale-95 transition shadow-md cursor-pointer"
-            title="View Active Quests"
+            onClick={() => setQuestsExpanded(!questsExpanded)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium active:scale-95 transition shadow-md cursor-pointer ${
+              questsExpanded
+                ? 'bg-red-950/80 border-red-600 text-red-200'
+                : 'bg-[#181113] border-red-900/60 text-red-200 hover:bg-red-950/40'
+            }`}
+            title="Toggle Quests List"
           >
             <Scroll className="w-4 h-4 text-red-400" />
             <span className="hidden md:inline">Quests</span>
@@ -249,16 +251,6 @@ export const HUD: React.FC<HUDProps> = ({
             title="Toggle On-Screen Virtual Touch Joystick"
           >
             <Gamepad2 className="w-4 h-4" />
-          </button>
-
-          {/* Android APK Download Modal */}
-          <button
-            onClick={onOpenApkExport}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-emerald-950/80 border border-emerald-600/80 text-emerald-200 text-xs font-medium hover:bg-emerald-900/60 active:scale-95 transition shadow-md cursor-pointer"
-            title="Export Android APK Package & Install PWA"
-          >
-            <Smartphone className="w-4 h-4 text-emerald-400" />
-            <span className="hidden lg:inline">Android APK</span>
           </button>
 
           {/* Audio Mute Toggle */}
@@ -310,22 +302,34 @@ export const HUD: React.FC<HUDProps> = ({
         </div>
 
         {questsExpanded && (
-          <div className="mt-1.5 space-y-1.5 max-h-[140px] overflow-y-auto pr-1">
+          <div className="mt-1.5 space-y-2 max-h-[180px] overflow-y-auto pr-1">
             {quests.map((q) => (
-              <div key={q.id} className="text-[10px]">
-                <div className="flex justify-between items-center text-slate-200 font-medium">
-                  <span className="truncate max-w-[145px]">{q.title}</span>
+              <div key={q.id} className="text-[10px] bg-black/40 p-1.5 rounded border border-amber-950/40">
+                <div className="flex justify-between items-center text-slate-200 font-medium mb-0.5">
+                  <span className="truncate max-w-[140px]" title={q.description}>{q.title}</span>
                   <span className={`font-mono tabular-nums ${q.completed ? 'text-emerald-400 font-bold' : 'text-amber-400'}`}>
                     {q.completed ? '✓' : `${q.currentCount}/${q.targetCount}`}
                   </span>
                 </div>
                 {/* Micro progress bar */}
-                <div className="w-full h-1 bg-slate-900 rounded-xs overflow-hidden mt-0.5">
+                <div className="w-full h-1 bg-slate-900 rounded-xs overflow-hidden">
                   <div
                     className={`h-full ${q.completed ? 'bg-emerald-500' : 'bg-amber-500'}`}
                     style={{ width: `${Math.min(100, (q.currentCount / q.targetCount) * 100)}%` }}
                   />
                 </div>
+                {/* Claim reward button if completed but unclaimed */}
+                {q.completed && !q.claimed && onClaimQuest && (
+                  <button
+                    onClick={() => onClaimQuest(q.id)}
+                    className="mt-1 w-full py-0.5 px-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-black font-bold rounded text-[9px] cursor-pointer transition active:scale-95 flex items-center justify-center gap-1"
+                  >
+                    <span>Claim Reward (+{q.goldReward}g)</span>
+                  </button>
+                )}
+                {q.claimed && (
+                  <span className="text-[9px] text-emerald-400/80 font-mono block mt-0.5">Reward Claimed</span>
+                )}
               </div>
             ))}
           </div>

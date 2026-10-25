@@ -98,6 +98,8 @@ export interface Enemy {
   targetPlayerIndex: number;
   animFrame: number;
   animTimer: number;
+  attackVisualTimer?: number;
+  attackVisualAngle?: number;
   isBoss?: boolean;
   name: string;
 }
