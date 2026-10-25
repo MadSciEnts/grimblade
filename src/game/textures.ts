@@ -653,8 +653,7 @@ class TextureAtlas {
         }
       }
 
-      // Shield (showing back wood & leather arm strapping) & Weapon pointing up
-      this.renderShield(ctx, facing, isShielding, walkBob, equipment.shield);
+      // Weapon pointing up (Shield was already rendered first above)
       this.renderWeapon(ctx, facing, isAttacking, attackProgress, walkBob, equipment.weapon);
     }
 

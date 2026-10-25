@@ -580,6 +580,37 @@ export class GameEngine {
     const w = this.canvas.clientWidth || (this.canvas.width / dpr);
     const h = this.canvas.clientHeight || (this.canvas.height / dpr);
 
+    // Gather active dynamic light sources for this frame (just below top of walls z=24/26)
+    const lights: { x: number; y: number; z: number; radius: number; intensity: number; r: number; g: number; b: number }[] = [];
+    for (const p of this.players) {
+      if (p.isDead) continue;
+      lights.push({
+        x: p.x,
+        y: p.y,
+        z: 24,
+        radius: 155,
+        intensity: 1.15,
+        r: 254,
+        g: 220,
+        b: 180,
+      });
+    }
+
+    const animFlicker = Math.floor(Date.now() / 150) % 3;
+    for (const torch of this.dungeon.map.torchPositions) {
+      if (Math.abs(torch.x - this.camera.x) > w / 2 + 100 || Math.abs(torch.y - this.camera.y) > h / 2 + 100) continue;
+      lights.push({
+        x: torch.x,
+        y: torch.y - 4,
+        z: 26,
+        radius: 95 + animFlicker * 5,
+        intensity: 1.35,
+        r: 251,
+        g: 146,
+        b: 60,
+      });
+    }
+
     // Screen shake offset
     const shakeX = (Math.random() - 0.5) * this.camera.shake * 2;
     const shakeY = (Math.random() - 0.5) * this.camera.shake * 2;
@@ -594,7 +625,7 @@ export class GameEngine {
     ctx.translate(cx, cy);
 
     // 1. Draw Tilemap (Floor & Base Walls)
-    this.renderTiles(ctx);
+    this.renderTiles(ctx, lights);
 
     // 2. Draw Persistent Blood Decals directly on floor
     bloodSystem.renderDecals(ctx);
@@ -707,7 +738,10 @@ export class GameEngine {
   }
 
   // Render Tiles with 2.5D Dynamic Normal Lighting (Floor vs Wall distinct light reactions)
-  private renderTiles(ctx: CanvasRenderingContext2D) {
+  private renderTiles(
+    ctx: CanvasRenderingContext2D,
+    lights: { x: number; y: number; z: number; radius: number; intensity: number; r: number; g: number; b: number }[]
+  ) {
     if (!this.dungeon || !this.canvas) return;
     const { tiles, width, height } = this.dungeon.map;
     const dpr = window.devicePixelRatio || 1;
@@ -726,37 +760,6 @@ export class GameEngine {
     const maxTileX = Math.min(width - 1, Math.ceil((this.camera.x + w / 2 + 32) / TILE_SIZE));
     const minTileY = Math.max(0, Math.floor((this.camera.y - h / 2 - 32) / TILE_SIZE));
     const maxTileY = Math.min(height - 1, Math.ceil((this.camera.y + h / 2 + 32) / TILE_SIZE));
-
-    // Gather active dynamic light sources for this frame (just below top of walls z=24/26)
-    const lights: { x: number; y: number; z: number; radius: number; intensity: number; r: number; g: number; b: number }[] = [];
-    for (const p of this.players) {
-      if (p.isDead) continue;
-      lights.push({
-        x: p.x,
-        y: p.y,
-        z: 24,
-        radius: 155,
-        intensity: 1.15,
-        r: 254,
-        g: 220,
-        b: 180,
-      });
-    }
-
-    const animFlicker = Math.floor(Date.now() / 150) % 3;
-    for (const torch of this.dungeon.map.torchPositions) {
-      if (Math.abs(torch.x - this.camera.x) > w / 2 + 100 || Math.abs(torch.y - this.camera.y) > h / 2 + 100) continue;
-      lights.push({
-        x: torch.x,
-        y: torch.y - 4,
-        z: 26,
-        radius: 95 + animFlicker * 5,
-        intensity: 1.35,
-        r: 251,
-        g: 146,
-        b: 60,
-      });
-    }
 
     for (let y = minTileY; y <= maxTileY; y++) {
       for (let x = minTileX; x <= maxTileX; x++) {
@@ -868,7 +871,6 @@ export class GameEngine {
     lights: { x: number; y: number; z: number; radius: number; intensity: number; r: number; g: number; b: number }[]
   ) {
     ctx.save();
-    ctx.translate(Math.round(entity.x), Math.round(entity.y));
     ctx.globalCompositeOperation = 'source-atop';
 
     const radius = entity.isBoss ? 24 : entity.type === 'abomination' ? 18 : 12;
