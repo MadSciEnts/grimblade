@@ -27,6 +27,14 @@ export class BloodSystem {
   public decals: BloodDecal[] = [];
   private maxDecals: number = 350;
 
+  // Clear all decals, particles, and limbs when moving to a new dungeon floor
+  public clearAll() {
+    this.particles = [];
+    this.severedLimbs = [];
+    this.fleshChunks = [];
+    this.decals = [];
+  }
+
   // Arterial Blood Spray on Weapon Hit (Pure 16-Bit Pixel Droplets)
   public spawnHitSpatter(x: number, y: number, hitAngle: number, intensity: number = 1) {
     const count = Math.floor((6 + Math.random() * 6) * intensity);

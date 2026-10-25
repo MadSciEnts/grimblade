@@ -35,6 +35,12 @@ export class GameEngine {
   public ambientDarkness: number = 0.68;
   private lightCanvas: HTMLCanvasElement | null = null;
   private lightCtx: CanvasRenderingContext2D | null = null;
+  // Floor Transition State
+  public isTransitioningFloor: boolean = false;
+  public transitionPhase: 'fade_out' | 'loading' | 'fade_in' | 'none' = 'none';
+  public transitionTimer: number = 0;
+  public transitionDuration: number = 0.45;
+  public targetFloor: number = 1;
 
   public cycleAmbientLight(): 'moody' | 'balanced' | 'bright' {
     if (this.ambientPreset === 'moody') {
@@ -136,6 +142,9 @@ export class GameEngine {
     this.chests = chests;
     this.altars = altars;
 
+    // Remove all previous floor blood decals, limbs, and flesh chunks
+    bloodSystem.clearAll();
+
     // Reposition players at spawn point
     this.players.forEach((p, idx) => {
       p.x = level.spawnPoint.x + (idx === 1 ? 24 : 0);
@@ -143,6 +152,7 @@ export class GameEngine {
       p.vx = 0;
       p.vy = 0;
       p.isDead = false;
+      p.hasBloodyFeet = 0;
       p.stats.hp = p.stats.maxHp;
     });
 
@@ -159,6 +169,15 @@ export class GameEngine {
     if (this.onLevelComplete) {
       this.onLevelComplete(floor);
     }
+  }
+
+  public startFloorTransition(newFloor: number) {
+    if (this.isTransitioningFloor) return;
+    this.isTransitioningFloor = true;
+    this.transitionPhase = 'fade_out';
+    this.transitionTimer = 0;
+    this.targetFloor = newFloor;
+    soundEngine.playStairsDescent();
   }
 
   // 60FPS Game Loop
@@ -179,6 +198,28 @@ export class GameEngine {
   // Simulation Update
   private update(dt: number) {
     if (!this.dungeon) return;
+
+    // Update Floor Transition State & Input Freeze
+    if (this.isTransitioningFloor) {
+      this.transitionTimer += dt;
+      // Freeze player inputs and movement during transition
+      for (const p of this.players) {
+        p.vx = 0;
+        p.vy = 0;
+        p.isMoving = false;
+        p.isAttacking = false;
+        p.isSpinAttacking = false;
+      }
+
+      if (this.transitionPhase === 'fade_out' && this.transitionTimer >= this.transitionDuration) {
+        this.transitionPhase = 'fade_in';
+        this.transitionTimer = 0;
+        this.loadFloor(this.targetFloor);
+      } else if (this.transitionPhase === 'fade_in' && this.transitionTimer >= this.transitionDuration) {
+        this.isTransitioningFloor = false;
+        this.transitionPhase = 'none';
+      }
+    }
 
     // 1. Update Players
     this.players.forEach((player) => {
@@ -373,11 +414,17 @@ export class GameEngine {
       if (targetPlayer && !enemy.isStunned) {
         const dist = Math.hypot(targetPlayer.x - enemy.x, targetPlayer.y - enemy.y);
 
+        // Damaged enemies slow down noticeably in proportion to lost HP!
+        const healthPct = Math.max(0.05, Math.min(1.0, enemy.hp / Math.max(1, enemy.maxHp)));
+        // Full health: 1.0x speed. At 25% health: ~0.35x speed (crippled limp / slow crawl)
+        const speedMultiplier = 0.18 + 0.82 * Math.pow(healthPct, 1.35);
+        const currentSpeed = enemy.speed * speedMultiplier;
+
         if (dist < 180) {
           // Chase Player
           const angle = Math.atan2(targetPlayer.y - enemy.y, targetPlayer.x - enemy.x);
-          enemy.vx += (Math.cos(angle) * enemy.speed - enemy.vx) * 0.15;
-          enemy.vy += (Math.sin(angle) * enemy.speed - enemy.vy) * 0.15;
+          enemy.vx += (Math.cos(angle) * currentSpeed - enemy.vx) * 0.18;
+          enemy.vy += (Math.sin(angle) * currentSpeed - enemy.vy) * 0.18;
 
           if (Math.abs(enemy.vx) > Math.abs(enemy.vy)) {
             enemy.facing = enemy.vx > 0 ? 'right' : 'left';
@@ -385,11 +432,19 @@ export class GameEngine {
             enemy.facing = enemy.vy > 0 ? 'down' : 'up';
           }
 
+          // Wounded enemies have slightly slower attack recovery due to physical trauma
+          const effectiveCooldown = enemy.attackCooldown * (1.0 + (1 - healthPct) * 0.6);
+
           // Attack when within range
           enemy.lastAttackTime += dt;
-          if (dist <= enemy.attackRange && enemy.lastAttackTime >= enemy.attackCooldown) {
+          if (dist <= enemy.attackRange && enemy.lastAttackTime >= effectiveCooldown) {
             enemy.lastAttackTime = 0;
             combatManager.handleEnemyAttack(enemy, targetPlayer, (s) => (this.camera.shake = s));
+          }
+
+          // Bleeding drops while moving wounded
+          if (healthPct < 0.6 && Math.random() < (1 - healthPct) * 0.05) {
+            bloodSystem.addDecal(enemy.x + (Math.random() - 0.5) * 6, enemy.y + 6, 2, enemy.type === 'slime' ? '#1b4332' : '#4a0505');
           }
         } else {
           // Wander / Idle
@@ -397,7 +452,8 @@ export class GameEngine {
           enemy.vy *= 0.8;
         }
 
-        enemy.animTimer += dt * 4;
+        // Walk cycle & wobble animation slows down directly with damage!
+        enemy.animTimer += dt * (1.8 + 3.2 * speedMultiplier);
         enemy.animFrame = Math.floor(enemy.animTimer) % 2;
       }
 
@@ -499,11 +555,13 @@ export class GameEngine {
       y: stairs.y * TILE_SIZE + TILE_SIZE / 2,
     };
 
-    // Any player stepping on stairs descends to next floor!
+    // Any player stepping on stairs descends to next floor with scene transition!
     for (const p of this.players) {
       if (p.isDead) continue;
       if (Math.hypot(p.x - stairsWorld.x, p.y - stairsWorld.y) < 18) {
-        this.loadFloor(this.currentFloor + 1);
+        if (!this.isTransitioningFloor) {
+          this.startFloorTransition(this.currentFloor + 1);
+        }
         return;
       }
 
@@ -574,12 +632,16 @@ export class GameEngine {
   public render() {
     if (!this.canvas || !this.ctx || !this.dungeon) return;
     const ctx = this.ctx;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const dpr = window.devicePixelRatio || 1;
+    const w = this.canvas.clientWidth || (this.canvas.width / dpr);
+    const h = this.canvas.clientHeight || (this.canvas.height / dpr);
 
     // Screen shake offset
     const shakeX = (Math.random() - 0.5) * this.camera.shake * 2;
     const shakeY = (Math.random() - 0.5) * this.camera.shake * 2;
+
+    // Gather active dynamic light sources for this frame (entity & tile normal mapping)
+    const lights = this.getFrameLights(w, h);
 
     ctx.save();
     ctx.fillStyle = '#050405';
@@ -591,7 +653,7 @@ export class GameEngine {
     ctx.translate(cx, cy);
 
     // 1. Draw Tilemap (Floor & Base Walls)
-    this.renderTiles(ctx);
+    this.renderTiles(ctx, lights);
 
     // 2. Draw Persistent Blood Decals directly on floor
     bloodSystem.renderDecals(ctx);
@@ -613,12 +675,12 @@ export class GameEngine {
       });
     });
 
-    // Enemies
+    // Enemies with Dynamic Normal-Mapped Lighting
     this.enemies.forEach((enemy) => {
       renderList.push({
         y: enemy.y,
         draw: () => {
-          textureAtlas.renderEnemy(ctx, enemy);
+          textureAtlas.renderEnemyWithLighting(ctx, enemy, lights);
         },
       });
     });
@@ -632,7 +694,11 @@ export class GameEngine {
           draw: () => {
             ctx.save();
             ctx.translate(player.x, player.y);
-            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            const shadowGrad = ctx.createRadialGradient(0, 4, 0, 0, 4, 12);
+            shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
+            shadowGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.5)');
+            shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = shadowGrad;
             ctx.beginPath();
             ctx.ellipse(0, 4, 12, 6, 0, 0, Math.PI * 2);
             ctx.fill();
@@ -676,6 +742,7 @@ export class GameEngine {
               spinAngle,
               player.isDashing
             );
+            this.renderEnemyLighting(ctx, player, lights);
           },
         });
       }
@@ -695,14 +762,116 @@ export class GameEngine {
     this.renderFloatingTexts(ctx);
 
     ctx.restore();
+
+    // 8. Screen Fade & Atmospheric Banner for Level Descent Transition
+    if (this.isTransitioningFloor) {
+      let alpha = 0;
+      if (this.transitionPhase === 'fade_out') {
+        alpha = Math.min(1, this.transitionTimer / this.transitionDuration);
+      } else if (this.transitionPhase === 'fade_in') {
+        alpha = Math.max(0, 1 - this.transitionTimer / this.transitionDuration);
+      }
+
+      ctx.save();
+      // Render in screen space
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+      // Black fade overlay
+      ctx.fillStyle = `rgba(3, 2, 4, ${alpha.toFixed(2)})`;
+      ctx.fillRect(0, 0, w, h);
+
+      // Atmospheric Floor Announcement Banner
+      if (alpha > 0.15) {
+        ctx.globalAlpha = Math.min(1, alpha * 1.4);
+
+        const midY = h / 2;
+        const bannerW = Math.min(w - 32, 380);
+        const bannerH = 92;
+        const bannerX = (w - bannerW) / 2;
+        const bannerY = midY - bannerH / 2;
+
+        // Dark gothic plaque
+        ctx.fillStyle = 'rgba(10, 8, 14, 0.94)';
+        ctx.fillRect(bannerX, bannerY, bannerW, bannerH);
+        ctx.strokeStyle = '#78350f'; // Dark amber gold border
+        ctx.lineWidth = 2;
+        ctx.strokeRect(bannerX, bannerY, bannerW, bannerH);
+
+        // Inner gold filigree line
+        ctx.strokeStyle = '#d97706';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(bannerX + 3, bannerY + 3, bannerW - 6, bannerH - 6);
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        // Subtitle
+        ctx.fillStyle = '#dc2626'; // Blood crimson
+        ctx.font = 'bold 12px "Courier New", monospace';
+        ctx.fillText('DESCENDING INTO THE DEPTHS...', w / 2, bannerY + 22);
+
+        // Floor Name
+        ctx.fillStyle = '#fef08a'; // Pale gold
+        ctx.font = 'bold 20px "Courier New", monospace';
+        const floorName = this.dungeon ? this.dungeon.name : `FLOOR ${this.targetFloor}`;
+        ctx.fillText(floorName.toUpperCase(), w / 2, bannerY + 48);
+
+        // Depth & Instruction
+        ctx.fillStyle = '#94a3b8';
+        ctx.font = '11px "Courier New", monospace';
+        ctx.fillText(`DUNGEON DEPTH ${this.targetFloor} · PREPARE YOUR BLADE`, w / 2, bannerY + 70);
+      }
+
+      ctx.restore();
+    }
+  }
+
+  private getFrameLights(w: number, h: number) {
+    const lights: { x: number; y: number; z: number; radius: number; intensity: number; r: number; g: number; b: number }[] = [];
+    for (const p of this.players) {
+      if (p.isDead) continue;
+      lights.push({
+        x: p.x,
+        y: p.y,
+        z: 24,
+        radius: 155,
+        intensity: 1.15,
+        r: 254,
+        g: 220,
+        b: 180,
+      });
+    }
+
+    if (this.dungeon) {
+      const animFlicker = Math.floor(Date.now() / 150) % 3;
+      for (const torch of this.dungeon.map.torchPositions) {
+        if (Math.abs(torch.x - this.camera.x) > w / 2 + 100 || Math.abs(torch.y - this.camera.y) > h / 2 + 100) continue;
+        lights.push({
+          x: torch.x,
+          y: torch.y - 4,
+          z: 26,
+          radius: 95 + animFlicker * 5,
+          intensity: 1.35,
+          r: 251,
+          g: 146,
+          b: 60,
+        });
+      }
+    }
+
+    return lights;
   }
 
   // Render Tiles with 2.5D Dynamic Normal Lighting (Floor vs Wall distinct light reactions)
-  private renderTiles(ctx: CanvasRenderingContext2D) {
+  private renderTiles(
+    ctx: CanvasRenderingContext2D,
+    lights: { x: number; y: number; z: number; radius: number; intensity: number; r: number; g: number; b: number }[]
+  ) {
     if (!this.dungeon || !this.canvas) return;
     const { tiles, width, height } = this.dungeon.map;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const dpr = window.devicePixelRatio || 1;
+    const w = this.canvas.clientWidth || (this.canvas.width / dpr);
+    const h = this.canvas.clientHeight || (this.canvas.height / dpr);
 
     const floorImg = textureAtlas.get('tile_floor');
     const ritualImg = textureAtlas.get('tile_ritual_floor');
@@ -716,37 +885,6 @@ export class GameEngine {
     const maxTileX = Math.min(width - 1, Math.ceil((this.camera.x + w / 2 + 32) / TILE_SIZE));
     const minTileY = Math.max(0, Math.floor((this.camera.y - h / 2 - 32) / TILE_SIZE));
     const maxTileY = Math.min(height - 1, Math.ceil((this.camera.y + h / 2 + 32) / TILE_SIZE));
-
-    // Gather active dynamic light sources for this frame
-    const lights: { x: number; y: number; z: number; radius: number; intensity: number; r: number; g: number; b: number }[] = [];
-    for (const p of this.players) {
-      if (p.isDead) continue;
-      lights.push({
-        x: p.x,
-        y: p.y,
-        z: 18,
-        radius: 155,
-        intensity: 1.15,
-        r: 254,
-        g: 220,
-        b: 180,
-      });
-    }
-
-    const animFlicker = Math.floor(Date.now() / 150) % 3;
-    for (const torch of this.dungeon.map.torchPositions) {
-      if (Math.abs(torch.x - this.camera.x) > w / 2 + 100 || Math.abs(torch.y - this.camera.y) > h / 2 + 100) continue;
-      lights.push({
-        x: torch.x,
-        y: torch.y - 4,
-        z: 22,
-        radius: 95 + animFlicker * 5,
-        intensity: 1.35,
-        r: 251,
-        g: 146,
-        b: 60,
-      });
-    }
 
     for (let y = minTileY; y <= maxTileY; y++) {
       for (let x = minTileX; x <= maxTileX; x++) {
@@ -769,83 +907,156 @@ export class GameEngine {
           ctx.drawImage(stairsImg, px, py);
         }
 
-        // 2. Dynamic Lighting via Surface Normals (N · L)
-        const norm = getTileNormal(t);
-        const tcx = px + 16;
-        const tcy = py + 16;
-        const tcz = norm.zHeight;
+        // 2. Dynamic Lighting via Per-Block Normal Map Sampling (N · L)
+        const normalKey = t === 3 ? 'tile_wall_front_normal' : t === 2 ? 'tile_wall_top_normal' : t === 4 ? 'tile_pillar_normal' : t === 6 ? 'tile_stairs_normal' : 'tile_floor_normal';
+        const blockSize = 4;
+        const normObj = { nx: 0, ny: 0, nz: 1 };
+        const tcz = getTileNormal(t).zHeight;
+
+        for (let by = 0; by < 32; by += blockSize) {
+          for (let bx = 0; bx < 32; bx += blockSize) {
+            const localX = bx + blockSize / 2;
+            const localY = by + blockSize / 2;
+            textureAtlas.getNormalAt(normalKey, localX, localY, normObj);
+
+            const subTcx = px + localX;
+            const subTcy = py + localY;
+
+            let directR = 0;
+            let directG = 0;
+            let directB = 0;
+            let totalDirect = 0;
+            let maxEdgeGlint = 0;
+            let edgeGlintSide: 'left' | 'right' | null = null;
+            let inDeepOcclusion = false;
+
+            for (const light of lights) {
+              const dx = light.x - subTcx;
+              const dy = light.y - subTcy;
+              const dz = light.z - tcz;
+              const distSq = dx * dx + dy * dy + dz * dz;
+              const radSq = light.radius * light.radius;
+
+              if (distSq < radSq) {
+                const dist = Math.sqrt(distSq);
+                const lx = dx / dist;
+                const ly = dy / dist;
+                const lz = dz / dist;
+
+                // Lambertian normal response: N · L
+                const ndotl = normObj.nx * lx + normObj.ny * ly + normObj.nz * lz;
+                const atten = Math.max(0, 1 - dist / light.radius);
+
+                if (ndotl > 0) {
+                  const irradiance = ndotl * atten * light.intensity;
+                  totalDirect += irradiance;
+                  directR += light.r * irradiance;
+                  directG += light.g * irradiance;
+                  directB += light.b * irradiance;
+
+                  if (t === 3 && bx === 0 && lx > 0.25) {
+                    maxEdgeGlint = Math.max(maxEdgeGlint, irradiance);
+                    edgeGlintSide = 'right';
+                  } else if (t === 3 && bx === 28 && lx < -0.25) {
+                    maxEdgeGlint = Math.max(maxEdgeGlint, irradiance);
+                    edgeGlintSide = 'left';
+                  }
+                } else if (t === 3 && dy < -8) {
+                  inDeepOcclusion = true;
+                }
+              }
+            }
+
+            if (totalDirect > 0.04) {
+              const alpha = Math.min(0.55, totalDirect * 0.45);
+              const r = Math.min(255, Math.round(directR / totalDirect));
+              const g = Math.min(255, Math.round(directG / totalDirect));
+              const b = Math.min(255, Math.round(directB / totalDirect));
+              ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(2)})`;
+              ctx.fillRect(px + bx, py + by, blockSize, blockSize);
+
+              if (maxEdgeGlint > 0.15 && edgeGlintSide) {
+                const glintAlpha = Math.min(0.65, maxEdgeGlint * 0.50);
+                ctx.fillStyle = `rgba(255, 235, 205, ${glintAlpha.toFixed(2)})`;
+                ctx.fillRect(edgeGlintSide === 'right' ? px + 30 : px + 1, py + by, 1, blockSize);
+              }
+            } else if (inDeepOcclusion && t === 3) {
+              ctx.fillStyle = 'rgba(6, 4, 8, 0.42)';
+              ctx.fillRect(px + bx, py + by, blockSize, blockSize);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private renderEnemyLighting(
+    ctx: CanvasRenderingContext2D,
+    entity: { x: number; y: number; isBoss?: boolean; type?: string },
+    lights: { x: number; y: number; z: number; radius: number; intensity: number; r: number; g: number; b: number }[]
+  ) {
+    ctx.save();
+    ctx.translate(Math.round(entity.x), Math.round(entity.y));
+    ctx.globalCompositeOperation = 'source-atop';
+
+    const radius = entity.isBoss ? 24 : entity.type === 'abomination' ? 18 : 12;
+    const tcz = 14; // Entity body height above floor
+    const blockSize = 3;
+
+    for (let dy = -radius; dy <= radius; dy += blockSize) {
+      for (let dx = -radius; dx <= radius; dx += blockSize) {
+        if (Math.hypot(dx, dy) > radius) continue;
+
+        // Hemispherical normal vector (pointing outwards from rounded body)
+        const nx = dx / radius;
+        const ny = dy / radius;
+        const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
+
+        const subTcx = entity.x + dx;
+        const subTcy = entity.y + dy;
 
         let directR = 0;
         let directG = 0;
         let directB = 0;
         let totalDirect = 0;
-        let maxEdgeGlint = 0;
-        let edgeGlintSide: 'left' | 'right' | null = null;
-        let inDeepOcclusion = false;
 
         for (const light of lights) {
-          const dx = light.x - tcx;
-          const dy = light.y - tcy;
-          const dz = light.z - tcz;
-          const distSq = dx * dx + dy * dy + dz * dz;
+          const ldx = light.x - subTcx;
+          const ldy = light.y - subTcy;
+          const ldz = light.z - tcz;
+          const distSq = ldx * ldx + ldy * ldy + ldz * ldz;
           const radSq = light.radius * light.radius;
 
           if (distSq < radSq) {
             const dist = Math.sqrt(distSq);
-            const lx = dx / dist;
-            const ly = dy / dist;
-            const lz = dz / dist;
+            const lx = ldx / dist;
+            const ly = ldy / dist;
+            const lz = ldz / dist;
 
-            // Lambertian normal response: N · L
-            const ndotl = norm.nx * lx + norm.ny * ly + norm.nz * lz;
+            const dot = nx * lx + ny * ly + nz * lz;
+            const ndotl = (dot + 0.4) / 1.4; // Half-Lambert wrap lighting so sides react dynamically
             const atten = Math.max(0, 1 - dist / light.radius);
 
-            if (ndotl > 0) {
-              const irradiance = ndotl * atten * light.intensity;
-              totalDirect += irradiance;
-              directR += light.r * irradiance;
-              directG += light.g * irradiance;
-              directB += light.b * irradiance;
-
-              // Directional edge bevel glint on walls
-              if (t === 3) {
-                if (lx > 0.25) {
-                  maxEdgeGlint = Math.max(maxEdgeGlint, irradiance);
-                  edgeGlintSide = 'right';
-                } else if (lx < -0.25) {
-                  maxEdgeGlint = Math.max(maxEdgeGlint, irradiance);
-                  edgeGlintSide = 'left';
-                }
-              }
-            } else if (t === 3 && dy < -8) {
-              // Light is north/behind the south-facing wall -> self-occlusion shadow
-              inDeepOcclusion = true;
-            }
+            const irradiance = ndotl * atten * light.intensity;
+            totalDirect += irradiance;
+            directR += light.r * irradiance;
+            directG += light.g * irradiance;
+            directB += light.b * irradiance;
           }
         }
 
-        // Apply Dynamic Normal-Mapped Light Reaction
-        if (totalDirect > 0.04) {
-          const alpha = Math.min(0.48, totalDirect * 0.40);
+        if (totalDirect > 0.02) {
+          const alpha = Math.min(0.55, totalDirect * 0.45);
           const r = Math.min(255, Math.round(directR / totalDirect));
           const g = Math.min(255, Math.round(directG / totalDirect));
           const b = Math.min(255, Math.round(directB / totalDirect));
           ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(2)})`;
-          ctx.fillRect(px, py, 32, 32);
-
-          // Directional brick bevel glint
-          if (maxEdgeGlint > 0.15 && edgeGlintSide) {
-            const glintAlpha = Math.min(0.65, maxEdgeGlint * 0.50);
-            ctx.fillStyle = `rgba(255, 235, 205, ${glintAlpha.toFixed(2)})`;
-            ctx.fillRect(edgeGlintSide === 'right' ? px + 30 : px + 1, py, 1, 32);
-          }
-        } else if (inDeepOcclusion && t === 3) {
-          // Wall front facing away from light falls into shadow
-          ctx.fillStyle = 'rgba(6, 4, 8, 0.42)';
-          ctx.fillRect(px, py, 32, 32);
+          ctx.fillRect(dx, dy, blockSize, blockSize);
         }
       }
     }
+
+    ctx.restore();
   }
 
   private renderGroundItems(ctx: CanvasRenderingContext2D) {

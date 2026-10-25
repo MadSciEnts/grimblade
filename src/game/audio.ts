@@ -346,6 +346,39 @@ class SoundEngine {
     osc.stop(t + 0.18);
   }
 
+  // Deep Subterranean Stairs Descent Rumble & Tone
+  public playStairsDescent() {
+    if (this.isMuted || !this.ctx || !this.masterGain) return;
+    this.ensureResume();
+
+    const t = this.ctx.currentTime;
+    // Deep stone rumble
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(120, t);
+    osc.frequency.exponentialRampToValueAtTime(32, t + 0.65);
+    gain.gain.setValueAtTime(0.45, t);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc.start(t);
+    osc.stop(t + 0.72);
+
+    // Eerie descending overtone
+    const osc2 = this.ctx.createOscillator();
+    const gain2 = this.ctx.createGain();
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(240, t);
+    osc2.frequency.exponentialRampToValueAtTime(55, t + 0.8);
+    gain2.gain.setValueAtTime(0.28, t);
+    gain2.gain.exponentialRampToValueAtTime(0.001, t + 0.85);
+    osc2.connect(gain2);
+    gain2.connect(this.masterGain);
+    osc2.start(t);
+    osc2.stop(t + 0.9);
+  }
+
   // Ambient Dark Dungeon Synthesizer Drone
   private startAmbientMusic() {
     if (!this.ctx || !this.masterGain) return;

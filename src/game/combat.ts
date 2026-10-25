@@ -93,6 +93,11 @@ export class CombatManager {
       bloodSystem.spawnHitSpatter(enemy.x, enemy.y, knockAngle, isCrit ? 1.6 : 1.0);
       bloodSystem.spawnFleshChunks(enemy.x, enemy.y, enemy.type, knockAngle, rawDamage / enemy.maxHp);
 
+      // On heavy hits or critical hits, sometimes sever a limb mid-combat!
+      if ((rawDamage >= enemy.maxHp * 0.25 || isCrit) && Math.random() < 0.5) {
+        bloodSystem.spawnDismemberment(enemy.x, enemy.y, enemy.type, knockAngle + (Math.random() - 0.5), false);
+      }
+
       // Sound
       if (enemy.type === 'slime') {
         soundEngine.playSlimeBurst();

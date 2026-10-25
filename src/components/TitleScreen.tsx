@@ -5,7 +5,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { soundEngine } from '../game/audio';
-import { Play, Smartphone, Volume2, VolumeX, Layers } from 'lucide-react';
+import { Play, Volume2, VolumeX, Layers } from 'lucide-react';
 
 interface TitleScreenProps {
   onStartGame: () => void;
@@ -15,7 +15,6 @@ interface TitleScreenProps {
 
 export const TitleScreen: React.FC<TitleScreenProps> = ({
   onStartGame,
-  onOpenApkExport,
   onOpenSpriteSheets,
 }) => {
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
@@ -36,24 +35,16 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
   };
 
   return (
-    <div className="absolute inset-0 z-40 flex flex-col justify-between items-center p-6 md:p-10 select-none overflow-hidden bg-gradient-to-b from-[#0b0709] via-[#140b0f] to-[#080406]">
+    <div className="absolute inset-0 z-40 flex flex-col justify-between items-center p-3 sm:p-6 md:p-10 select-none overflow-y-auto bg-gradient-to-b from-[#0b0709] via-[#140b0f] to-[#080406]">
       {/* Background Decorative Vignette */}
       <div className="absolute inset-0 pointer-events-none opacity-40">
         <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-red-900/25 rounded-full blur-3xl" />
         <div className="absolute bottom-1/4 left-1/2 -translate-x-1/2 w-[400px] h-[400px] bg-amber-900/15 rounded-full blur-3xl" />
       </div>
 
-      {/* Top Bar: Sound toggle, Sprite Sheets & Android APK prompt */}
-      <div className="w-full flex justify-between items-center z-10">
+      {/* Top Bar: Sound toggle & Sprite Sheets */}
+      <div className="w-full flex justify-between items-center z-10 shrink-0">
         <div className="flex items-center gap-2">
-          <button
-            onClick={onOpenApkExport}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-950/70 border border-emerald-600/70 text-emerald-300 text-xs font-medium hover:bg-emerald-900/80 active:scale-95 transition cursor-pointer"
-          >
-            <Smartphone className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Install Android APK</span>
-          </button>
-
           <button
             onClick={onOpenSpriteSheets}
             className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-purple-950/60 border border-purple-700/60 text-purple-200 text-xs font-medium hover:bg-purple-900/80 active:scale-95 transition cursor-pointer"
@@ -72,12 +63,12 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
         </button>
       </div>
 
-      {/* Center: Bespoke Inline SVG Title Lockup with 30-40% Negative Space */}
-      <div className="z-10 flex flex-col items-center text-center my-auto max-w-2xl">
+      {/* Center: Bespoke Inline SVG Title Lockup with Relative Sizing */}
+      <div className="z-10 flex flex-col items-center text-center my-auto py-2 sm:py-4 max-w-2xl shrink-0">
         {/* Heraldic Crossed Swords & Crest Lockup */}
-        <div className="relative mb-3">
+        <div className="relative mb-2 sm:mb-3">
           <svg
-            className="w-20 h-20 md:w-28 md:h-28 drop-shadow-[0_10px_20px_rgba(220,38,38,0.5)]"
+            className="w-14 h-14 sm:w-20 sm:h-20 md:w-24 md:h-24 drop-shadow-[0_10px_20px_rgba(220,38,38,0.5)]"
             viewBox="0 0 100 100"
             fill="none"
           >
@@ -100,23 +91,16 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
           </svg>
         </div>
 
-        {/* Title Lockup Prose */}
-        <h1 className="font-cinzel text-4xl md:text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-amber-100 via-red-200 to-red-600 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
+        {/* Title Lockup */}
+        <h1 className="font-cinzel text-3xl sm:text-4xl md:text-6xl font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-b from-amber-100 via-red-200 to-red-600 drop-shadow-[0_4px_12px_rgba(0,0,0,0.8)]">
           GRIMBLADE
         </h1>
-        <div className="font-cinzel text-xs md:text-sm font-bold tracking-[0.3em] uppercase text-amber-500/90 mt-2">
-          16-Bit Action RPG · Zelda 3 &amp; Diablo
-        </div>
-
-        <p className="mt-4 text-xs md:text-sm text-slate-300 max-w-md font-sans leading-relaxed">
-          Fluid sword &amp; shield combat, procedural Diablo loot, visceral gore dismemberment, and infinite catacombs exploration.
-        </p>
 
         {/* Action Button (Single Player Start) */}
-        <div className="mt-8 flex flex-col gap-3 w-full max-w-xs">
+        <div className="mt-4 sm:mt-6 md:mt-8 flex flex-col gap-3 w-full max-w-xs px-4">
           <button
             onClick={onStartGame}
-            className="w-full py-3.5 px-6 bg-gradient-to-r from-red-700 via-red-600 to-red-800 hover:from-red-600 hover:to-red-700 text-amber-100 rounded-lg font-cinzel font-bold text-sm tracking-wider flex items-center justify-center gap-2 shadow-2xl shadow-red-950 border border-red-500/80 active:scale-98 transition cursor-pointer"
+            className="w-full py-3 sm:py-3.5 px-6 bg-gradient-to-r from-red-700 via-red-600 to-red-800 hover:from-red-600 hover:to-red-700 text-amber-100 rounded-lg font-cinzel font-bold text-xs sm:text-sm tracking-wider flex items-center justify-center gap-2 shadow-2xl shadow-red-950 border border-red-500/80 active:scale-98 transition cursor-pointer"
           >
             <Play className="w-4 h-4 fill-amber-200" />
             <span>START GAME</span>
@@ -124,18 +108,8 @@ export const TitleScreen: React.FC<TitleScreenProps> = ({
         </div>
       </div>
 
-      {/* Flat Control-Hint Line (Per Game Craft Guidelines) */}
-      <div className="z-10 text-[11px] font-mono text-slate-400 flex flex-wrap items-center justify-center gap-2 md:gap-3 text-center">
-        <span>WASD / Touch Joystick Move</span>
-        <span>·</span>
-        <span>Space Sword Attack</span>
-        <span>·</span>
-        <span>Shift Shield Block</span>
-        <span>·</span>
-        <span>Q Spin Attack</span>
-        <span>·</span>
-        <span>E Dash</span>
-      </div>
+      {/* Spacer to maintain vertical balance */}
+      <div className="shrink-0" />
     </div>
   );
 };
