@@ -8,7 +8,9 @@
     "build": "vite build",
     "preview": "vite preview",
     "clean": "rm -rf dist server.js",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "android:sync": "npm run build && npx cap sync android",
+    "android:open": "npx cap open android"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.3",

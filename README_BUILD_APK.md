@@ -15,11 +15,11 @@ To compile the official release APK file:
 1. Unzip this package.
 2. In your terminal, run:
    ```bash
-   npm install
-   npm run build
-   npx cap sync android
-   npx cap open android
+   npm install --legacy-peer-deps
+   npm run android:sync
+   npm run android:open
    ```
+   *(Note: `npm run android:sync` automatically builds the web bundle into `dist/` before syncing to Capacitor, preventing any "Could not find web assets directory" errors).*
 3. Android Studio will open the project.
 4. Go to **Build** > **Build Bundle(s) / APK(s)** > **Build APK(s)**.
 5. Your release APK will be generated at:
