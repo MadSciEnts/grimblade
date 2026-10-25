@@ -1,0 +1,14 @@
+{
+  "appId": "com.grimblade.arpg",
+  "appName": "Grimblade: 16-Bit Action RPG",
+  "webDir": "www",
+  "bundledWebRuntime": false,
+  "server": {
+    "androidScheme": "https"
+  },
+  "android": {
+    "allowMixedContent": true,
+    "captureInput": true,
+    "webContentsDebuggingEnabled": false
+  }
+}
