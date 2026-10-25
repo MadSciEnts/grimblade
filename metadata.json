@@ -1,0 +1,6 @@
+{
+  "name": "Grimblade: 16-Bit Action RPG",
+  "description": "A 2.5D dark fantasy top-down action RPG in the style of Zelda 3 and Diablo. Features fluid sword and shield combat, dynamic quests, procedurally generated loot, visceral gore, damaged equipment visuals, and pre-baked 16-bit pixel art sprite sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

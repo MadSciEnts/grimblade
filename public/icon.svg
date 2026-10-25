@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" fill="#0b090a" rx="96"/>
+  <!-- Decorative border -->
+  <rect x="24" y="24" width="464" height="464" fill="none" stroke="#7f1d1d" stroke-width="8" stroke-dasharray="16 8" rx="72"/>
+  <rect x="40" y="40" width="432" height="432" fill="#160d0e" rx="60"/>
+  
+  <!-- Crossed Swords -->
+  <g transform="translate(256, 256)">
+    <!-- Blood glow -->
+    <circle r="140" fill="#991b1b" opacity="0.3" filter="blur(20px)"/>
+    
+    <!-- Sword 1 -->
+    <g transform="rotate(45)">
+      <rect x="-8" y="-180" width="16" height="260" fill="#e2e8f0" stroke="#0f172a" stroke-width="3"/>
+      <polygon points="0,-200 -8,-180 8,-180" fill="#f8fafc"/>
+      <rect x="-36" y="80" width="72" height="14" fill="#d97706" rx="2" stroke="#78350f" stroke-width="2"/>
+      <rect x="-6" y="94" width="12" height="45" fill="#451a03" rx="2"/>
+      <circle cx="0" cy="144" r="10" fill="#d97706" stroke="#78350f" stroke-width="2"/>
+      <line x1="0" y1="-180" x2="0" y2="80" stroke="#94a3b8" stroke-width="2"/>
+    </g>
+    
+    <!-- Sword 2 -->
+    <g transform="rotate(-45)">
+      <rect x="-8" y="-180" width="16" height="260" fill="#cbd5e1" stroke="#0f172a" stroke-width="3"/>
+      <polygon points="0,-200 -8,-180 8,-180" fill="#f1f5f9"/>
+      <rect x="-36" y="80" width="72" height="14" fill="#d97706" rx="2" stroke="#78350f" stroke-width="2"/>
+      <rect x="-6" y="94" width="12" height="45" fill="#451a03" rx="2"/>
+      <circle cx="0" cy="144" r="10" fill="#d97706" stroke="#78350f" stroke-width="2"/>
+      <line x1="0" y1="-180" x2="0" y2="80" stroke="#64748b" stroke-width="2"/>
+    </g>
+    
+    <!-- Shield in front -->
+    <path d="M 0 -70 L 60 -45 L 50 40 L 0 95 L -50 40 L -60 -45 Z" fill="#2d1517" stroke="#dc2626" stroke-width="6"/>
+    <path d="M 0 -55 L 45 -35 L 38 30 L 0 75 L -38 30 L -45 -35 Z" fill="#1a0b0d" stroke="#f59e0b" stroke-width="3"/>
+    
+    <!-- Skull insignia -->
+    <ellipse cx="0" cy="-6" rx="22" ry="24" fill="#e2e8f0"/>
+    <rect x="-14" y="10" width="28" height="14" fill="#e2e8f0" rx="3"/>
+    <circle cx="-9" cy="-6" r="6" fill="#0b090a"/>
+    <circle cx="9" cy="-6" r="6" fill="#0b090a"/>
+    <circle cx="-9" cy="-6" r="2.5" fill="#ef4444"/>
+    <circle cx="9" cy="-6" r="2.5" fill="#ef4444"/>
+    <line x1="-8" y1="20" x2="-8" y2="24" stroke="#0b090a" stroke-width="2"/>
+    <line x1="0" y1="20" x2="0" y2="24" stroke="#0b090a" stroke-width="2"/>
+    <line x1="8" y1="20" x2="8" y2="24" stroke="#0b090a" stroke-width="2"/>
+  </g>
+  
+  <!-- Blood splatter accents -->
+  <circle cx="120" cy="140" r="12" fill="#dc2626" opacity="0.8"/>
+  <circle cx="100" cy="160" r="6" fill="#991b1b" opacity="0.8"/>
+  <circle cx="390" cy="380" r="16" fill="#dc2626" opacity="0.7"/>
+  <circle cx="410" cy="405" r="8" fill="#7f1d1d" opacity="0.8"/>
+</svg>
