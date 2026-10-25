@@ -680,13 +680,16 @@ export class GameEngine {
     // 1. Draw Tilemap (Floor & Base Walls)
     this.renderTiles(ctx, lights);
 
-    // 2. Draw Persistent Blood Decals directly on floor
-    bloodSystem.renderDecals(ctx);
+    // 2. Draw Persistent Blood Decals, Footprints, Grounded Limbs & Chunks directly on floor
+    bloodSystem.renderDecalsAndGroundedGore(ctx);
 
-    // 3. Draw Ground Loot Items with hovering beacon
+    // 3. Draw Flying Blood Droplets & Flying Limbs on floor layer BEFORE entity renderList so blood is NEVER drawn on top of player
+    bloodSystem.renderFlyingGore(ctx);
+
+    // 4. Draw Ground Loot Items with hovering beacon
     this.renderGroundItems(ctx);
 
-    // 4. 2.5D DEPTH SORTING: Sort all dynamic entities by Y coordinate!
+    // 5. 2.5D DEPTH SORTING: Sort all dynamic entities (chests, enemies, player) by Y coordinate!
     const renderList: { y: number; draw: () => void }[] = [];
 
     // Chests
@@ -802,9 +805,6 @@ export class GameEngine {
     // Sort ascending by Y (2.5D Zelda depth sorting)
     renderList.sort((a, b) => a.y - b.y);
     renderList.forEach((item) => item.draw());
-
-    // 5. Draw Flying Blood Droplets and Flying Dismembered Limbs
-    bloodSystem.renderParticlesAndLimbs(ctx);
 
     // 6. Draw 2.5D Dynamic Torch Lighting & Atmospheric Dungeon Darkness
     this.renderLighting(ctx, w, h);

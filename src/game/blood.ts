@@ -339,8 +339,9 @@ export class BloodSystem {
     }
   }
 
-  // Render Persistent Blood Decals as Pure 16-Bit Pixel Clusters
-  public renderDecals(ctx: CanvasRenderingContext2D) {
+  // Render Persistent Blood Decals & Grounded Gore (Decals, Footprints, Grounded Limbs & Chunks)
+  public renderDecalsAndGroundedGore(ctx: CanvasRenderingContext2D) {
+    // 1. Decals & Footprints
     for (const d of this.decals) {
       const x = Math.round(d.x);
       const y = Math.round(d.y);
@@ -351,58 +352,79 @@ export class BloodSystem {
 
       // 16-Bit Pixel Splatter Shape (Stepped pixel blocks, zero smooth vector curves)
       if (r <= 3) {
-        // Small droplet: 2x2 or 3x3 block
         ctx.fillRect(x - 1, y - 1, r, r);
       } else if (r <= 7) {
-        // Medium splatter: stepped cross pixel pattern
         ctx.fillRect(x - 3, y - 2, 6, 4);
         ctx.fillRect(x - 2, y - 3, 4, 6);
-        // Satellite pixels
         ctx.fillRect(x + 4, y - 1, 2, 2);
         ctx.fillRect(x - 4, y + 2, 2, 2);
       } else {
-        // Large blood pool: stepped 16-bit jagged shape
         ctx.fillRect(x - r + 3, y - 4, (r - 3) * 2, 8);
         ctx.fillRect(x - r + 5, y - 7, (r - 5) * 2, 14);
         ctx.fillRect(x - 6, y - r + 4, 12, (r - 4) * 2);
-        // Jagged clot bits
         ctx.fillStyle = PALETTE.bloodGore;
         ctx.fillRect(x - 2, y - 2, 4, 4);
         ctx.fillStyle = d.color;
-        // Satellite drips
         ctx.fillRect(x + r - 2, y + 2, 2, 2);
         ctx.fillRect(x - r + 1, y - 3, 2, 2);
         ctx.fillRect(x + 2, y + r - 3, 2, 2);
       }
     }
     ctx.globalAlpha = 1.0;
-  }
 
-  // Render Flying Blood Droplets and Flesh Chunks as 16-Bit Pixel Blocks
-  public renderParticlesAndLimbs(ctx: CanvasRenderingContext2D) {
-    // 1. Severed Limbs
-    for (const limb of this.severedLimbs) {
-      textureAtlas.renderSeveredLimb(ctx, limb);
-    }
-
-    // 2. Flying Flesh Chunks (Pure Pixel Rectangles)
+    // 2. Grounded Flesh Chunks (z <= 0)
     for (const chunk of this.fleshChunks) {
+      if (chunk.z > 0) continue;
       ctx.fillStyle = chunk.color;
       const px = Math.round(chunk.x - chunk.size / 2);
-      const py = Math.round(chunk.y - chunk.z - chunk.size / 2);
+      const py = Math.round(chunk.y - chunk.size / 2);
       ctx.fillRect(px, py, chunk.size, chunk.size);
-      // Dark pixel outline
       ctx.fillStyle = PALETTE.bloodGore;
       ctx.fillRect(px, py, 1, chunk.size);
     }
 
-    // 3. In-Air Blood Droplets (Pure Pixel Rectangles)
+    // 3. Grounded Severed Limbs (z <= 0)
+    for (const limb of this.severedLimbs) {
+      if (limb.z > 0) continue;
+      textureAtlas.renderSeveredLimb(ctx, limb);
+    }
+  }
+
+  // Render Flying Blood Droplets and Flying Gore (z > 0)
+  public renderFlyingGore(ctx: CanvasRenderingContext2D) {
+    // 1. Flying Severed Limbs
+    for (const limb of this.severedLimbs) {
+      if (limb.z <= 0) continue;
+      textureAtlas.renderSeveredLimb(ctx, limb);
+    }
+
+    // 2. Flying Flesh Chunks
+    for (const chunk of this.fleshChunks) {
+      if (chunk.z <= 0) continue;
+      ctx.fillStyle = chunk.color;
+      const px = Math.round(chunk.x - chunk.size / 2);
+      const py = Math.round(chunk.y - chunk.z - chunk.size / 2);
+      ctx.fillRect(px, py, chunk.size, chunk.size);
+      ctx.fillStyle = PALETTE.bloodGore;
+      ctx.fillRect(px, py, 1, chunk.size);
+    }
+
+    // 3. In-Air Blood Droplets
     for (const p of this.particles) {
       ctx.fillStyle = p.color;
       const px = Math.round(p.x - p.size / 2);
       const py = Math.round(p.y - p.z - p.size / 2);
       ctx.fillRect(px, py, p.size, p.size);
     }
+  }
+
+  // Legacy render wrappers for backwards compatibility
+  public renderDecals(ctx: CanvasRenderingContext2D) {
+    this.renderDecalsAndGroundedGore(ctx);
+  }
+
+  public renderParticlesAndLimbs(ctx: CanvasRenderingContext2D) {
+    this.renderFlyingGore(ctx);
   }
 }
 
