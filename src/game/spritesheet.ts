@@ -441,46 +441,80 @@ export class SpriteSheetManager {
   private generateEnemySheet() {
     const [canvas, ctx] = this.createCanvas(512, 256);
 
-    // Row 0: Acid Slimes
+    // Row 0: True Pixelated Gelatinous Acid Slimes
     for (let i = 0; i < 4; i++) {
       const cx = i * 32 + 16;
       const cy = 16;
-      const squash = i % 2 === 1 ? 1.25 : 0.9;
+      const squash = i % 2 === 1 ? 1.15 : 0.88;
+      
+      // Slime Puddle Shadow Base
+      ctx.fillStyle = '#0f291e';
+      ctx.fillRect(cx - 11, cy + 6, 22, 6);
+      
+      // Translucent Gel Body (Darker Underside)
       ctx.fillStyle = PALETTE.slimeAcidDark;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + 4, 11 * squash, 8 / squash, 0, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillRect(cx - 10, cy + 2, 20, 8);
+      ctx.fillRect(cx - 8, cy - 2, 16, 6);
+      
+      // Inner Jelly Core
       ctx.fillStyle = PALETTE.slimeAcid;
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + 2, 9 * squash, 6 / squash, 0, 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillRect(cx - 8, cy + 1, 16, 6);
+      ctx.fillStyle = PALETTE.slimeAcidGlow;
+      ctx.fillRect(cx - 5, cy + 2, 10, 3);
+      
+      // Glossy Specular Highlight (Top Left)
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(cx - 5, cy - 3, 4, 2);
+      ctx.fillRect(cx - 6, cy - 2, 2, 3);
+      
+      // Pixel Eyes
       ctx.fillStyle = PALETTE.voidBlack;
-      ctx.fillRect(cx - 4, cy - 1, 2, 3);
-      ctx.fillRect(cx + 2, cy - 1, 2, 3);
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(cx - 4, cy - 1, 1, 1);
-      ctx.fillRect(cx + 2, cy - 1, 1, 1);
+      ctx.fillRect(cx - 4, cy + 1, 2, 3);
+      ctx.fillRect(cx + 2, cy + 1, 2, 3);
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(cx - 4, cy + 1, 1, 1);
+      ctx.fillRect(cx + 2, cy + 1, 1, 1);
     }
 
-    // Row 1 (y = 32): Goblin Skirmishers & Spearmen
+    // Row 1 (y = 32): Distinctly Bipedal Goblin Warriors
     for (let i = 0; i < 4; i++) {
       const cx = i * 32 + 16;
       const cy = 48;
+      const step = i % 2 === 0 ? 1 : -1;
+
+      // Bipedal Legs & Boots (standing on two legs)
+      ctx.fillStyle = PALETTE.goblinGreenDark;
+      ctx.fillRect(cx - 5, cy + 4, 3, 6);
+      ctx.fillRect(cx + 2, cy + 4, 3, 6);
+      ctx.fillStyle = PALETTE.woodDark;
+      ctx.fillRect(cx - 6, cy + 9, 4, 3);
+      ctx.fillRect(cx + 2, cy + 9, 4, 3);
+
+      // Tattered Leather Tunic / Body
       ctx.fillStyle = PALETTE.clothLeather;
-      ctx.fillRect(cx - 5, cy + 6, 3, 5);
-      ctx.fillRect(cx + 2, cy + 6, 3, 5);
-      ctx.fillStyle = '#334155';
-      ctx.fillRect(cx - 6, cy - 4, 12, 10);
+      ctx.fillRect(cx - 6, cy - 3, 12, 8);
+      ctx.fillStyle = '#2d1608';
+      ctx.fillRect(cx - 5, cy - 2, 10, 6);
+
+      // Bipedal Goblin Head with Large Pointy Ears
       ctx.fillStyle = PALETTE.goblinGreen;
-      ctx.fillRect(cx - 5, cy - 12, 10, 8);
-      ctx.fillRect(cx - 8, cy - 10, 3, 3);
-      ctx.fillRect(cx + 5, cy - 10, 3, 3);
+      ctx.fillRect(cx - 5, cy - 12, 10, 9);
+      // Pointy Ears sticking out sideways
+      ctx.fillRect(cx - 9, cy - 11, 4, 3);
+      ctx.fillRect(cx + 5, cy - 11, 4, 3);
+
+      // Glowing Red Eyes & Snout
       ctx.fillStyle = '#ef4444';
       ctx.fillRect(cx - 3, cy - 9, 2, 2);
-      ctx.fillRect(cx + 2, cy - 9, 2, 2);
-      // Dagger
+      ctx.fillRect(cx + 1, cy - 9, 2, 2);
+      ctx.fillStyle = PALETTE.goblinGreenDark;
+      ctx.fillRect(cx - 1, cy - 7, 2, 2); // Snout
+
+      // Weapon (Dagger / Spear in hand)
       ctx.fillStyle = PALETTE.ironMid;
-      ctx.fillRect(cx + 6, cy, 3, 7);
+      ctx.fillRect(cx + 6, cy - 4 + step, 2, 10);
+      ctx.fillStyle = PALETTE.ironBright;
+      ctx.fillRect(cx + 6, cy - 6 + step, 2, 3);
     }
 
     // Row 2 (y = 64): Crypt Skeletons

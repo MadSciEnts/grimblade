@@ -388,6 +388,26 @@ export class GameEngine {
 
     // Collision with Dungeon Walls & Columns
     this.moveAndCollide(player, dt);
+
+    // Check Spike Trap hazard on current player tile
+    if (this.dungeon) {
+      const tileX = Math.floor(player.x / TILE_SIZE);
+      const tileY = Math.floor(player.y / TILE_SIZE);
+      if (
+        tileX >= 0 &&
+        tileX < this.dungeon.map.width &&
+        tileY >= 0 &&
+        tileY < this.dungeon.map.height &&
+        this.dungeon.map.tiles[tileY][tileX] === 10
+      ) {
+        if (!player.iFrames || player.iFrames <= 0) {
+          player.stats.hp = Math.max(0, player.stats.hp - 8);
+          player.iFrames = 0.8;
+          soundEngine.playPlayerHit();
+          combatManager.addFloatingText(player.x, player.y - 16, '-8 SPIKE!', '#ef4444', 12);
+        }
+      }
+    }
   }
 
   private updateEnemies(dt: number) {
@@ -958,13 +978,6 @@ export class GameEngine {
     const { tiles, width, height } = this.dungeon.map;
     const { w, h } = this.getViewportSize();
 
-    const floorImg = textureAtlas.get('tile_floor');
-    const ritualImg = textureAtlas.get('tile_ritual_floor');
-    const wallTopImg = textureAtlas.get('tile_wall_top');
-    const wallFrontImg = textureAtlas.get('tile_wall_front');
-    const pillarImg = textureAtlas.get('tile_pillar');
-    const stairsImg = textureAtlas.get('tile_stairs');
-
     // Viewport Culling Bounds
     const minTileX = Math.max(0, Math.floor((this.camera.x - w / 2 - 32) / TILE_SIZE));
     const maxTileX = Math.min(width - 1, Math.ceil((this.camera.x + w / 2 + 32) / TILE_SIZE));
@@ -976,6 +989,16 @@ export class GameEngine {
         const t = tiles[y][x];
         const px = x * TILE_SIZE;
         const py = y * TILE_SIZE;
+
+        const varIdx = Math.abs(x * 37 + y * 19) % 8;
+        const floorImg = textureAtlas.get(`tile_floor_${varIdx}`);
+        const ritualImg = textureAtlas.get(`tile_ritual_floor_${varIdx}`);
+        const wallTopImg = textureAtlas.get(`tile_wall_top_${varIdx}`);
+        const wallFrontImg = textureAtlas.get(`tile_wall_front_${varIdx}`);
+        const pillarImg = textureAtlas.get(`tile_pillar_${varIdx}`);
+        const stairsImg = textureAtlas.get(`tile_stairs_${varIdx}`);
+        const pitImg = textureAtlas.get('tile_pit');
+        const spikeImg = textureAtlas.get('tile_spike_trap');
 
         // 1. Draw base 16-bit diffuse texture
         if (t === 1 && floorImg) {
@@ -990,6 +1013,10 @@ export class GameEngine {
           ctx.drawImage(pillarImg, px, py);
         } else if (t === 6 && stairsImg) {
           ctx.drawImage(stairsImg, px, py);
+        } else if (t === 9 && pitImg) {
+          ctx.drawImage(pitImg, px, py);
+        } else if (t === 10 && spikeImg) {
+          ctx.drawImage(spikeImg, px, py);
         }
 
         // 2. Dynamic Lighting via Per-Block Normal Map Sampling (N · L)

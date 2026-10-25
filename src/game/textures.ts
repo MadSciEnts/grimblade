@@ -155,235 +155,204 @@ class TextureAtlas {
     target.nz = normals[idx + 2];
   }
 
-  // Generate 2.5D Zelda 3 Tiles (32x32 pixels each) with distinct material palettes
+  // Generate 8 pseudo-random variations of each 2.5D Zelda 3 Tile for organic texture randomness
   private generateTiles() {
-    // 1. Dungeon Floor: Cold Slate-Granite Pavers (Blue-Gray Hue)
-    const [floor, fCtx] = this.createCanvas(32, 32);
-    fCtx.fillStyle = PALETTE.floorBase;
-    fCtx.fillRect(0, 0, 32, 32);
-    // Draw 4 distinct slate pavers
-    fCtx.fillStyle = PALETTE.floorPaverMid;
-    fCtx.fillRect(1, 1, 14, 14);
-    fCtx.fillRect(17, 1, 14, 14);
-    fCtx.fillRect(1, 17, 14, 14);
-    fCtx.fillRect(17, 17, 14, 14);
-    // Beveled edges & chisel highlights (Cold slate)
-    fCtx.fillStyle = PALETTE.floorPaverHighlight;
-    fCtx.fillRect(1, 1, 13, 2);
-    fCtx.fillRect(1, 1, 2, 13);
-    fCtx.fillRect(17, 1, 13, 2);
-    fCtx.fillRect(17, 1, 2, 13);
-    fCtx.fillRect(1, 17, 13, 2);
-    fCtx.fillRect(1, 17, 2, 13);
-    fCtx.fillRect(17, 17, 13, 2);
-    fCtx.fillRect(17, 17, 2, 13);
-    // Dark bottom shadows on pavers
-    fCtx.fillStyle = PALETTE.floorPaverDark;
-    fCtx.fillRect(1, 13, 14, 2);
-    fCtx.fillRect(13, 1, 2, 14);
-    fCtx.fillRect(17, 13, 14, 2);
-    fCtx.fillRect(29, 1, 2, 14);
-    fCtx.fillRect(1, 29, 14, 2);
-    fCtx.fillRect(13, 17, 2, 14);
-    fCtx.fillRect(17, 29, 14, 2);
-    fCtx.fillRect(29, 17, 2, 14);
-    // Mortar recesses & slate fissures
-    fCtx.fillStyle = PALETTE.floorMortar;
-    fCtx.fillRect(0, 15, 32, 2);
-    fCtx.fillRect(15, 0, 2, 32);
-    fCtx.fillStyle = PALETTE.voidBlack;
-    fCtx.fillRect(5, 5, 5, 1);
-    fCtx.fillRect(9, 6, 2, 2);
-    fCtx.fillRect(21, 21, 6, 1);
-    // Damp slate moss accents
-    fCtx.fillStyle = PALETTE.floorMoss;
-    fCtx.fillRect(14, 14, 3, 2);
-    fCtx.fillRect(2, 16, 2, 2);
-    this.cache.set('tile_floor', floor);
+    for (let v = 0; v < 8; v++) {
+      // 1. Dungeon Floor Variations
+      const [floor, fCtx] = this.createCanvas(32, 32);
+      fCtx.fillStyle = PALETTE.floorBase;
+      fCtx.fillRect(0, 0, 32, 32);
 
-    // 2. Blood Altar Floor (Runic crimson ritual stone)
-    const [altarFloor, afCtx] = this.createCanvas(32, 32);
-    afCtx.drawImage(floor, 0, 0);
-    // Bloodstone center wash
-    afCtx.fillStyle = 'rgba(74, 5, 5, 0.45)';
-    afCtx.fillRect(2, 2, 28, 28);
-    afCtx.strokeStyle = PALETTE.bloodMid;
-    afCtx.lineWidth = 1;
-    afCtx.beginPath();
-    afCtx.arc(16, 16, 11, 0, Math.PI * 2);
-    afCtx.stroke();
-    // Inner pentagram runes
-    afCtx.fillStyle = PALETTE.bloodBright;
-    afCtx.fillRect(15, 6, 2, 3);
-    afCtx.fillRect(24, 14, 3, 2);
-    afCtx.fillRect(21, 22, 2, 3);
-    afCtx.fillRect(9, 22, 2, 3);
-    afCtx.fillRect(5, 14, 3, 2);
-    this.cache.set('tile_ritual_floor', altarFloor);
+      fCtx.fillStyle = v % 2 === 0 ? PALETTE.floorPaverMid : '#28374d';
+      fCtx.fillRect(1, 1, 14, 14);
+      fCtx.fillRect(17, 1, 14, 14);
+      fCtx.fillRect(1, 17, 14, 14);
+      fCtx.fillRect(17, 17, 14, 14);
 
-    // 3. Zelda 3 2.5D North Wall Top Coping (32x32, Heavy Granite/Ironstone Cap)
-    const [wallTop, wtCtx] = this.createCanvas(32, 32);
-    wtCtx.fillStyle = PALETTE.wallTop;
-    wtCtx.fillRect(0, 0, 32, 32);
-    wtCtx.fillStyle = PALETTE.wallTopHighlight;
-    wtCtx.fillRect(0, 0, 32, 3);
-    wtCtx.fillStyle = PALETTE.wallBrickLight;
-    wtCtx.fillRect(0, 3, 32, 5);
-    // Vertical coping stone joints
-    wtCtx.fillStyle = PALETTE.wallMortar;
-    wtCtx.fillRect(10, 0, 2, 27);
-    wtCtx.fillRect(22, 0, 2, 27);
-    // Underside deep drop shadow cast on wall/floor below
-    wtCtx.fillStyle = PALETTE.wallCastShadow;
-    wtCtx.fillRect(0, 27, 32, 5);
-    this.cache.set('tile_wall_top', wallTop);
+      fCtx.fillStyle = PALETTE.floorPaverHighlight;
+      fCtx.fillRect(1, 1, 13, 2);
+      fCtx.fillRect(1, 1, 2, 13);
+      fCtx.fillRect(17, 1, 13, 2);
+      fCtx.fillRect(17, 1, 2, 13);
+      fCtx.fillRect(1, 17, 13, 2);
+      fCtx.fillRect(1, 17, 2, 13);
+      fCtx.fillRect(17, 17, 13, 2);
+      fCtx.fillRect(17, 17, 2, 13);
 
-    // 4. Zelda 3 2.5D Wall Front (Facing camera with Gothic Obsidian Ashlar Bricks)
-    const [wallFront, wfCtx] = this.createCanvas(32, 32);
-    wfCtx.fillStyle = PALETTE.wallBase;
-    wfCtx.fillRect(0, 0, 32, 32);
-    // Row 1 ashlar bricks
-    wfCtx.fillStyle = PALETTE.wallBrickMid;
-    wfCtx.fillRect(1, 1, 14, 8);
-    wfCtx.fillRect(17, 1, 14, 8);
-    // Row 2 ashlar bricks (staggered running bond)
-    wfCtx.fillRect(1, 11, 6, 8);
-    wfCtx.fillRect(9, 11, 14, 8);
-    wfCtx.fillRect(25, 11, 6, 8);
-    // Row 3 ashlar bricks
-    wfCtx.fillRect(1, 21, 14, 8);
-    wfCtx.fillRect(17, 21, 14, 8);
-    // Chiseled brick top bevels (Gothic ashlar highlights)
-    wfCtx.fillStyle = PALETTE.wallBrickHighlight;
-    wfCtx.fillRect(1, 1, 14, 1);
-    wfCtx.fillRect(17, 1, 14, 1);
-    wfCtx.fillRect(1, 11, 6, 1);
-    wfCtx.fillRect(9, 11, 14, 1);
-    wfCtx.fillRect(25, 11, 6, 1);
-    wfCtx.fillRect(1, 21, 14, 1);
-    wfCtx.fillRect(17, 21, 14, 1);
-    // Chipped brick corners
-    wfCtx.fillStyle = PALETTE.wallBrickDark;
-    wfCtx.fillRect(1, 7, 14, 2);
-    wfCtx.fillRect(17, 7, 14, 2);
-    wfCtx.fillRect(9, 17, 14, 2);
-    // Deep soot mortar lines
-    wfCtx.fillStyle = PALETTE.wallMortar;
-    wfCtx.fillRect(0, 0, 32, 1);
-    wfCtx.fillRect(0, 9, 32, 2);
-    wfCtx.fillRect(0, 19, 32, 2);
-    wfCtx.fillRect(0, 29, 32, 3);
-    wfCtx.fillRect(15, 0, 2, 10);
-    wfCtx.fillRect(7, 10, 2, 10);
-    wfCtx.fillRect(23, 10, 2, 10);
-    wfCtx.fillRect(15, 20, 2, 10);
-    this.cache.set('tile_wall_front', wallFront);
+      fCtx.fillStyle = PALETTE.floorPaverDark;
+      fCtx.fillRect(1, 13, 14, 2);
+      fCtx.fillRect(13, 1, 2, 14);
+      fCtx.fillRect(17, 13, 14, 2);
+      fCtx.fillRect(29, 1, 2, 14);
+      fCtx.fillRect(1, 29, 14, 2);
+      fCtx.fillRect(13, 17, 2, 14);
+      fCtx.fillRect(17, 29, 14, 2);
+      fCtx.fillRect(29, 17, 2, 14);
 
-    // 5. Pillar Column (32x32)
-    const [pillar, pCtx] = this.createCanvas(32, 32);
-    pCtx.drawImage(floor, 0, 0);
-    pCtx.fillStyle = PALETTE.wallBase;
-    pCtx.fillRect(4, 2, 24, 28);
-    pCtx.fillStyle = PALETTE.wallBrickMid;
-    pCtx.fillRect(6, 4, 20, 24);
-    pCtx.fillStyle = PALETTE.wallBrickLight;
-    pCtx.fillRect(8, 6, 8, 20);
-    pCtx.fillStyle = PALETTE.wallBrickHighlight;
-    pCtx.fillRect(8, 6, 3, 20);
-    pCtx.fillStyle = PALETTE.wallMortar;
-    pCtx.fillRect(22, 6, 4, 20);
-    this.cache.set('tile_pillar', pillar);
+      fCtx.fillStyle = PALETTE.floorMortar;
+      fCtx.fillRect(0, 15, 32, 2);
+      fCtx.fillRect(15, 0, 2, 32);
 
-    // 6. Dungeon Stairs Down (Entrance to deeper levels with prominent stone border & dark abyss gradient)
-    const [stairs, sCtx] = this.createCanvas(32, 32);
-    // Base pitch black void
-    sCtx.fillStyle = PALETTE.voidBlack;
-    sCtx.fillRect(0, 0, 32, 32);
+      // Randomized crack/pitting per variation v
+      fCtx.fillStyle = PALETTE.voidBlack;
+      const cx = 3 + (v * 4) % 20;
+      const cy = 3 + (v * 7) % 20;
+      fCtx.fillRect(cx, cy, 3 + (v % 3), 1);
+      fCtx.fillRect(cx + 1, cy + 1, 2, 2);
 
-    // Outer masonry frame / threshold border (3px stone coping)
-    sCtx.fillStyle = '#1e293b'; // Slate border
-    sCtx.fillRect(0, 0, 32, 32);
+      if (v % 2 === 0) {
+        fCtx.fillStyle = PALETTE.floorMoss;
+        fCtx.fillRect((v * 7) % 24, (v * 11) % 24, 3, 2);
+      }
+      if (v % 3 === 1) {
+        fCtx.fillStyle = '#162e24';
+        fCtx.fillRect(2 + (v * 5) % 20, 16 + (v * 3) % 10, 3, 2);
+      }
 
-    // Chiseled highlights on outer frame (top & left outer rim)
-    sCtx.fillStyle = '#64748b';
-    sCtx.fillRect(0, 0, 32, 2);
-    sCtx.fillRect(0, 0, 2, 32);
-    sCtx.fillStyle = '#94a3b8';
-    sCtx.fillRect(1, 1, 30, 1);
-    sCtx.fillRect(1, 1, 1, 30);
+      this.cache.set(`tile_floor_${v}`, floor);
+      if (v === 0) this.cache.set('tile_floor', floor);
 
-    // Dark shadow crevice on inside of stone frame (bottom & right)
-    sCtx.fillStyle = '#090d16';
-    sCtx.fillRect(0, 30, 32, 2);
-    sCtx.fillRect(30, 0, 2, 32);
+      // 2. Ritual Floor Variations
+      const [altarFloor, afCtx] = this.createCanvas(32, 32);
+      afCtx.drawImage(floor, 0, 0);
+      afCtx.fillStyle = 'rgba(74, 5, 5, 0.45)';
+      afCtx.fillRect(2, 2, 28, 28);
+      afCtx.strokeStyle = PALETTE.bloodMid;
+      afCtx.lineWidth = 1;
+      afCtx.beginPath();
+      afCtx.arc(16, 16, 11 + (v % 2), 0, Math.PI * 2);
+      afCtx.stroke();
+      afCtx.fillStyle = PALETTE.bloodBright;
+      afCtx.fillRect(15, 6 + (v % 3), 2, 3);
+      afCtx.fillRect(24, 14, 3, 2);
+      this.cache.set(`tile_ritual_floor_${v}`, altarFloor);
+      if (v === 0) this.cache.set('tile_ritual_floor', altarFloor);
 
-    // 4 Iron/Bronze Corner Reinforcement Brackets with rivets
-    const corners = [
-      { x: 0, y: 0 },
-      { x: 28, y: 0 },
-      { x: 0, y: 28 },
-      { x: 28, y: 28 },
-    ];
-    for (const c of corners) {
-      sCtx.fillStyle = '#334155'; // Dark iron bracket
-      sCtx.fillRect(c.x, c.y, 4, 4);
-      sCtx.fillStyle = '#d97706'; // Bronze/gold rivet in center
-      sCtx.fillRect(c.x + 1, c.y + 1, 2, 2);
+      // 3. Wall Top Coping Variations
+      const [wallTop, wtCtx] = this.createCanvas(32, 32);
+      wtCtx.fillStyle = PALETTE.wallTop;
+      wtCtx.fillRect(0, 0, 32, 32);
+      wtCtx.fillStyle = PALETTE.wallTopHighlight;
+      wtCtx.fillRect(0, 0, 32, 3);
+      wtCtx.fillStyle = v % 2 === 0 ? PALETTE.wallBrickLight : '#60394b';
+      wtCtx.fillRect(0, 3, 32, 5);
+      wtCtx.fillStyle = PALETTE.wallMortar;
+      wtCtx.fillRect(8 + (v * 2) % 14, 0, 2, 27);
+      wtCtx.fillRect(20 + (v * 3) % 8, 0, 2, 27);
+      wtCtx.fillStyle = PALETTE.wallCastShadow;
+      wtCtx.fillRect(0, 27, 32, 5);
+      this.cache.set(`tile_wall_top_${v}`, wallTop);
+      if (v === 0) this.cache.set('tile_wall_top', wallTop);
+
+      // 4. Wall Front Variations
+      const [wallFront, wfCtx] = this.createCanvas(32, 32);
+      wfCtx.fillStyle = PALETTE.wallBase;
+      wfCtx.fillRect(0, 0, 32, 32);
+      wfCtx.fillStyle = v % 2 === 0 ? PALETTE.wallBrickMid : '#351e2b';
+      wfCtx.fillRect(1, 1, 14, 8);
+      wfCtx.fillRect(17, 1, 14, 8);
+      wfCtx.fillRect(1, 11, 6, 8);
+      wfCtx.fillRect(9, 11, 14, 8);
+      wfCtx.fillRect(25, 11, 6, 8);
+      wfCtx.fillRect(1, 21, 14, 8);
+      wfCtx.fillRect(17, 21, 14, 8);
+
+      wfCtx.fillStyle = PALETTE.wallBrickHighlight;
+      wfCtx.fillRect(1, 1, 14, 1);
+      wfCtx.fillRect(17, 1, 14, 1);
+
+      wfCtx.fillStyle = PALETTE.wallBrickDark;
+      wfCtx.fillRect(1 + (v * 2) % 10, 7, 3, 2);
+      wfCtx.fillRect(17 + (v * 3) % 8, 17, 3, 2);
+
+      wfCtx.fillStyle = PALETTE.wallMortar;
+      wfCtx.fillRect(0, 0, 32, 1);
+      wfCtx.fillRect(0, 9, 32, 2);
+      wfCtx.fillRect(0, 19, 32, 2);
+      wfCtx.fillRect(0, 29, 32, 3);
+      wfCtx.fillRect(15, 0, 2, 10);
+      wfCtx.fillRect(7, 10, 2, 10);
+      wfCtx.fillRect(23, 10, 2, 10);
+      this.cache.set(`tile_wall_front_${v}`, wallFront);
+      if (v === 0) this.cache.set('tile_wall_front', wallFront);
+
+      // 5. Pillar Column Variations
+      const [pillar, pCtx] = this.createCanvas(32, 32);
+      pCtx.drawImage(floor, 0, 0);
+      pCtx.fillStyle = PALETTE.wallBase;
+      pCtx.fillRect(4, 2, 24, 28);
+      pCtx.fillStyle = PALETTE.wallBrickMid;
+      pCtx.fillRect(6, 4, 20, 24);
+      pCtx.fillStyle = PALETTE.wallBrickLight;
+      pCtx.fillRect(8, 6, 8 + (v % 3), 20);
+      pCtx.fillStyle = PALETTE.wallBrickHighlight;
+      pCtx.fillRect(8, 6, 3, 20);
+      pCtx.fillStyle = PALETTE.wallMortar;
+      pCtx.fillRect(22, 6, 4, 20);
+      this.cache.set(`tile_pillar_${v}`, pillar);
+      if (v === 0) this.cache.set('tile_pillar', pillar);
+
+      // 6. Stairs Variations
+      const [stairs, sCtx] = this.createCanvas(32, 32);
+      sCtx.fillStyle = PALETTE.voidBlack;
+      sCtx.fillRect(0, 0, 32, 32);
+      sCtx.fillStyle = '#1e293b';
+      sCtx.fillRect(0, 0, 32, 32);
+      sCtx.fillStyle = '#64748b';
+      sCtx.fillRect(0, 0, 32, 2);
+      sCtx.fillRect(0, 0, 2, 32);
+      sCtx.fillStyle = PALETTE.floorPaverLight;
+      sCtx.fillRect(3, 3, 26, 6);
+      sCtx.fillStyle = PALETTE.floorPaverMid;
+      sCtx.fillRect(3, 9, 26, 6);
+      sCtx.fillStyle = PALETTE.floorPaverDark;
+      sCtx.fillRect(3, 15, 26, 6);
+      sCtx.fillStyle = '#0c1017';
+      sCtx.fillRect(3, 21, 26, 8);
+      this.cache.set(`tile_stairs_${v}`, stairs);
+      if (v === 0) this.cache.set('tile_stairs', stairs);
     }
 
-    // Interior Stairwell Pit (descending flight from y=3 to y=29, x=3 to 28)
-    // Step 1 (top): Cold slate paver
-    sCtx.fillStyle = PALETTE.floorPaverLight;
-    sCtx.fillRect(3, 3, 26, 6);
-    sCtx.fillStyle = '#93c5fd'; // Sharp chisel step lip
-    sCtx.fillRect(3, 3, 26, 1);
+    // 7. Pit / Chasm Tile (9)
+    const [pit, piCtx] = this.createCanvas(32, 32);
+    piCtx.fillStyle = PALETTE.voidBlack;
+    piCtx.fillRect(0, 0, 32, 32);
+    piCtx.fillStyle = '#1e1b24';
+    piCtx.fillRect(1, 1, 30, 30);
+    piCtx.fillStyle = PALETTE.voidBlack;
+    piCtx.fillRect(4, 4, 24, 24);
+    piCtx.fillStyle = '#09080b';
+    piCtx.fillRect(4, 4, 24, 2);
+    piCtx.fillRect(4, 4, 2, 24);
+    this.cache.set('tile_pit', pit);
 
-    // Step 2: Mid slate
-    sCtx.fillStyle = PALETTE.floorPaverMid;
-    sCtx.fillRect(3, 9, 26, 6);
-    sCtx.fillStyle = PALETTE.floorPaverHighlight;
-    sCtx.fillRect(3, 9, 26, 1);
-    sCtx.fillStyle = PALETTE.floorMortar;
-    sCtx.fillRect(3, 14, 26, 1); // Riser shadow
-
-    // Step 3: Dark slate
-    sCtx.fillStyle = PALETTE.floorPaverDark;
-    sCtx.fillRect(3, 15, 26, 6);
-    sCtx.fillStyle = PALETTE.floorPaverMid;
-    sCtx.fillRect(3, 15, 26, 1);
-    sCtx.fillStyle = '#06090e';
-    sCtx.fillRect(3, 20, 26, 1);
-
-    // Step 4: Deep abyss floor
-    sCtx.fillStyle = '#0c1017';
-    sCtx.fillRect(3, 21, 26, 8);
-    sCtx.fillStyle = PALETTE.floorPaverDark;
-    sCtx.fillRect(3, 21, 26, 1);
-
-    // Side stone curbs / guide rails
-    sCtx.fillStyle = '#1e293b';
-    sCtx.fillRect(3, 3, 2, 26);
-    sCtx.fillRect(27, 3, 2, 26);
-    sCtx.fillStyle = '#334155';
-    sCtx.fillRect(4, 3, 1, 26);
-    sCtx.fillRect(27, 3, 1, 26);
-
-    // The dark gradient on the lower side of the stairs (descending into the deep black void)
-    const stairGrad = sCtx.createLinearGradient(0, 11, 0, 29);
-    stairGrad.addColorStop(0, 'rgba(3, 2, 5, 0.0)');
-    stairGrad.addColorStop(0.35, 'rgba(3, 2, 5, 0.45)');
-    stairGrad.addColorStop(0.7, 'rgba(3, 2, 5, 0.85)');
-    stairGrad.addColorStop(1, 'rgba(2, 1, 3, 0.98)');
-    sCtx.fillStyle = stairGrad;
-    sCtx.fillRect(3, 11, 26, 18);
-
-    // Carved glowing descent rune / chevron at the entrance threshold
-    sCtx.fillStyle = '#f59e0b';
-    sCtx.fillRect(15, 4, 2, 1);
-    sCtx.fillRect(14, 5, 4, 1);
-    sCtx.fillRect(15, 6, 2, 1);
-
-    this.cache.set('tile_stairs', stairs);
+    // 8. Spike Trap Tile (10)
+    const [spike, spCtx] = this.createCanvas(32, 32);
+    spCtx.drawImage(this.cache.get('tile_floor_0')!, 0, 0);
+    spCtx.fillStyle = PALETTE.ironDark;
+    spCtx.fillRect(8, 8, 16, 16);
+    spCtx.fillStyle = PALETTE.ironMid;
+    spCtx.fillRect(10, 10, 12, 12);
+    spCtx.fillStyle = PALETTE.ironBright;
+    spCtx.beginPath();
+    spCtx.moveTo(16, 11);
+    spCtx.lineTo(13, 20);
+    spCtx.lineTo(19, 20);
+    spCtx.closePath();
+    spCtx.fill();
+    spCtx.beginPath();
+    spCtx.moveTo(12, 15);
+    spCtx.lineTo(9, 22);
+    spCtx.lineTo(15, 22);
+    spCtx.closePath();
+    spCtx.fill();
+    spCtx.beginPath();
+    spCtx.moveTo(20, 15);
+    spCtx.lineTo(17, 22);
+    spCtx.lineTo(23, 22);
+    spCtx.closePath();
+    spCtx.fill();
+    this.cache.set('tile_spike_trap', spike);
   }
 
   // Pre-generate standard Tangent-Space RGB Normal Maps for dynamic lighting (R=Nx, G=Ny, B=Nz) matching textures 1:1

@@ -12,12 +12,13 @@ export const TILE_SIZE = 32;
 // 1: floor
 // 2: wall_top (Zelda 3 2.5D coping)
 // 3: wall_front (Zelda 3 2.5D front facing wall with depth)
-// 4: column/pillar
+// 4: column / pillar
 // 5: door / archway
 // 6: stairs_down
 // 7: blood_altar
 // 8: chest_closed
-// 9: chest_open
+// 9: pit / chasm (impassable hazard)
+// 10: spike_trap (floor hazard)
 
 export function generateDungeonLevel(depth: number): {
   level: DungeonLevel;
@@ -25,21 +26,20 @@ export function generateDungeonLevel(depth: number): {
   chests: { x: number; y: number; opened: boolean }[];
   altars: { x: number; y: number; purified: boolean }[];
 } {
-  const width = 48;
-  const height = 48;
+  const width = 52;
+  const height = 52;
   const tiles: number[][] = Array.from({ length: height }, () => Array(width).fill(0));
 
-  // Generate 6 to 9 interconnected rectangular rooms
-  const numRooms = Math.min(9, 6 + Math.floor(depth / 2));
+  // Generate 7 to 10 interconnected rooms
+  const numRooms = Math.min(10, 6 + Math.floor(depth / 2));
   const rooms: DungeonRoom[] = [];
 
-  for (let attempt = 0; attempt < 80 && rooms.length < numRooms; attempt++) {
-    const rw = Math.floor(Math.random() * 6) + 8; // 8 to 13 tiles wide
-    const rh = Math.floor(Math.random() * 6) + 8; // 8 to 13 tiles high
+  for (let attempt = 0; attempt < 100 && rooms.length < numRooms; attempt++) {
+    const rw = Math.floor(Math.random() * 5) + 8; // 8 to 12 tiles wide
+    const rh = Math.floor(Math.random() * 5) + 8; // 8 to 12 tiles high
     const rx = Math.floor(Math.random() * (width - rw - 4)) + 2;
     const ry = Math.floor(Math.random() * (height - rh - 4)) + 2;
 
-    // Check overlap
     let overlaps = false;
     for (const r of rooms) {
       if (
@@ -54,7 +54,14 @@ export function generateDungeonLevel(depth: number): {
     }
 
     if (!overlaps) {
-      const roomType = rooms.length === 0 ? 'start' : rooms.length === numRooms - 1 && depth % 3 === 0 ? 'boss' : (rooms.length % 3 === 0 ? 'altar' : 'combat');
+      const roomType =
+        rooms.length === 0
+          ? 'start'
+          : rooms.length === numRooms - 1 && depth % 3 === 0
+          ? 'boss'
+          : rooms.length % 3 === 0
+          ? 'altar'
+          : 'combat';
       rooms.push({ x: rx, y: ry, w: rw, h: rh, type: roomType });
     }
   }
@@ -66,16 +73,36 @@ export function generateDungeonLevel(depth: number): {
         tiles[y][x] = 1; // Floor
       }
     }
-    // Add columns inside larger rooms
+    // Add pillars inside larger rooms
     if (r.w >= 10 && r.h >= 10 && r.type !== 'boss') {
       tiles[r.y + 3][r.x + 3] = 4;
       tiles[r.y + 3][r.x + r.w - 4] = 4;
       tiles[r.y + r.h - 4][r.x + 3] = 4;
       tiles[r.y + r.h - 4][r.x + r.w - 4] = 4;
     }
+
+    // Introduce Pits and Spike Traps in combat/boss rooms (depth >= 2)
+    if (depth >= 2 && r.type !== 'start') {
+      // Add a pit in larger rooms
+      if (r.w >= 9 && r.h >= 9 && Math.random() < 0.6) {
+        const px = r.x + Math.floor(r.w / 2);
+        const py = r.y + Math.floor(r.h / 2);
+        tiles[py][px] = 9; // Pit
+        tiles[py][px + 1] = 9;
+      }
+      // Add spike traps on random floor tiles
+      const trapCount = Math.floor(Math.random() * 2) + (depth >= 3 ? 2 : 1);
+      for (let t = 0; t < trapCount; t++) {
+        const tx = r.x + 2 + Math.floor(Math.random() * (r.w - 4));
+        const ty = r.y + 2 + Math.floor(Math.random() * (r.h - 4));
+        if (tiles[ty][tx] === 1) {
+          tiles[ty][tx] = 10; // Spike Trap
+        }
+      }
+    }
   }
 
-  // Connect rooms with corridors
+  // Connect rooms with corridors (L-shaped corridors)
   for (let i = 0; i < rooms.length - 1; i++) {
     const r1 = rooms[i];
     const r2 = rooms[i + 1];
@@ -97,39 +124,65 @@ export function generateDungeonLevel(depth: number): {
     }
   }
 
-  // Apply Zelda 3 2.5D Walls around all floor tiles!
-  // Pass 1: Direct north wall front face facing south towards room -> wall_front (3)
+  // Apply Zelda 3 2.5D Walls around all floor/pit/hazard tiles!
+  // Pass 1: North wall front faces -> wall_front (3)
   for (let y = 0; y < height - 1; y++) {
     for (let x = 0; x < width; x++) {
-      if (tiles[y][x] === 0 && y < height - 1 && tiles[y + 1][x] === 1) {
+      if (tiles[y][x] === 0 && (tiles[y + 1][x] === 1 || tiles[y + 1][x] === 10)) {
         tiles[y][x] = 3; // Wall Front
       }
     }
   }
 
-  // Pass 2: Side walls, diagonal walls, and wall depth coping surfaces -> wall_top (2)
+  // Pass 2: Side walls, top depth coping -> wall_top (2)
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       if (tiles[y][x] === 0) {
-        const hasFloorAbove = y > 0 && tiles[y - 1][x] === 1;
-        const hasFloorSide = (x > 0 && tiles[y][x - 1] === 1) || (x < width - 1 && tiles[y][x + 1] === 1);
-        const hasWallFrontBelow = y < height - 1 && tiles[y + 1][x] === 3;
-        const hasWallFrontNearby = (x > 0 && tiles[y][x - 1] === 3) || (x < width - 1 && tiles[y][x + 1] === 3) || (y > 0 && tiles[y - 1][x] === 3);
-        const hasFloorDiag = (x > 0 && y < height - 1 && tiles[y + 1][x - 1] === 1) || (x < width - 1 && y < height - 1 && tiles[y + 1][x + 1] === 1) ||
-                             (x > 0 && y > 0 && tiles[y - 1][x - 1] === 1) || (x < width - 1 && y > 0 && tiles[y - 1][x + 1] === 1);
+        const hasFloorNearby =
+          (y > 0 && (tiles[y - 1][x] === 1 || tiles[y - 1][x] === 10)) ||
+          (x > 0 && (tiles[y][x - 1] === 1 || tiles[y][x - 1] === 10)) ||
+          (x < width - 1 && (tiles[y][x + 1] === 1 || tiles[y][x + 1] === 10)) ||
+          (y < height - 1 && tiles[y + 1][x] === 3);
 
-        if (hasFloorSide || hasFloorAbove || hasWallFrontBelow || hasWallFrontNearby || hasFloorDiag) {
-          tiles[y][x] = 2; // Wall Top (coping / side wall / top depth)
+        if (hasFloorNearby) {
+          tiles[y][x] = 2; // Wall Top
         }
       }
     }
   }
 
-  // Torches on walls
+  // GUARANTEED WALL-MOUNTED TORCHES: Scan wall tiles (2 or 3) that have a floor immediately below them
   const torchPositions: { x: number; y: number }[] = [];
+  for (let y = 0; y < height - 1; y++) {
+    for (let x = 0; x < width; x++) {
+      if ((tiles[y][x] === 2 || tiles[y][x] === 3) && tiles[y + 1][x] === 1) {
+        // Place torch on this wall tile, slightly offset toward the center
+        // Only pick roughly every 5th or 6th valid wall tile to space them out nicely
+        if ((x * 7 + y * 13) % 7 === 0) {
+          torchPositions.push({
+            x: x * TILE_SIZE + TILE_SIZE / 2,
+            y: y * TILE_SIZE + TILE_SIZE / 2,
+          });
+        }
+      }
+    }
+  }
+
+  // Fallback: Ensure every room has at least 2 wall-mounted torches if none were picked
   for (const r of rooms) {
-    torchPositions.push({ x: (r.x + 2) * TILE_SIZE, y: (r.y - 0.5) * TILE_SIZE });
-    torchPositions.push({ x: (r.x + r.w - 3) * TILE_SIZE, y: (r.y - 0.5) * TILE_SIZE });
+    const roomTorches = torchPositions.filter(
+      (tp) => tp.x >= r.x * TILE_SIZE && tp.x <= (r.x + r.w) * TILE_SIZE && tp.y >= (r.y - 1) * TILE_SIZE && tp.y <= (r.y + r.h) * TILE_SIZE
+    );
+    if (roomTorches.length === 0) {
+      torchPositions.push({
+        x: (r.x + 2) * TILE_SIZE,
+        y: (r.y + 1) * TILE_SIZE,
+      });
+      torchPositions.push({
+        x: (r.x + r.w - 3) * TILE_SIZE,
+        y: (r.y + 1) * TILE_SIZE,
+      });
+    }
   }
 
   // Spawn Point in Room 0
@@ -173,7 +226,6 @@ export function generateDungeonLevel(depth: number): {
   for (let i = 1; i < rooms.length; i++) {
     const r = rooms[i];
     if (r.type === 'boss') {
-      // Spawn Boss Malakor!
       const bx = (r.x + Math.floor(r.w / 2)) * TILE_SIZE;
       const by = (r.y + Math.floor(r.h / 2)) * TILE_SIZE;
       enemies.push(createEnemyInstance(`boss_${depth}_${++enemyIdCounter}`, 'boss_malakor', bx, by, depth + 2));
@@ -214,7 +266,6 @@ export function generateDungeonLevel(depth: number): {
 }
 
 function pickEnemyTypeForDepth(depth: number): EnemyType {
-  // Starts with basic slimes & goblins, scales to skeletons, necromancers, abominations, demons!
   if (depth === 1) {
     return Math.random() < 0.65 ? 'slime' : 'goblin';
   } else if (depth === 2) {
@@ -300,7 +351,7 @@ function createEnemyInstance(id: string, type: EnemyType, x: number, y: number, 
       defense = 7;
       speed = 1.2;
       radius = 12;
-      attackRange = 60; // Ranged casting
+      attackRange = 60;
       break;
     case 'necromancer':
       name = 'Dread Necromancer';
@@ -375,6 +426,6 @@ function createEnemyInstance(id: string, type: EnemyType, x: number, y: number, 
 }
 
 export function isTileSolid(tileType: number): boolean {
-  // 0: void, 2: wall_top, 3: wall_front, 4: column, 8: closed chest
-  return tileType === 0 || tileType === 2 || tileType === 3 || tileType === 4 || tileType === 8;
+  // 0: void, 2: wall_top, 3: wall_front, 4: column, 8: closed chest, 9: pit
+  return tileType === 0 || tileType === 2 || tileType === 3 || tileType === 4 || tileType === 8 || tileType === 9;
 }

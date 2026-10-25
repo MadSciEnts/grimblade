@@ -20,6 +20,7 @@ import {
   Moon,
   Sun,
   GripHorizontal,
+  Sliders,
 } from 'lucide-react';
 
 interface HUDProps {
@@ -50,49 +51,8 @@ export const HUD: React.FC<HUDProps> = ({
   onClaimQuest,
 }) => {
   const [isMuted, setIsMuted] = useState(soundEngine.getMuted());
-  const [questsExpanded, setQuestsExpanded] = useState(true);
-
-  // Interactively draggable quest tracker state
-  const [questPos, setQuestPos] = useState<{ x: number; y: number } | null>(null);
-  const isDraggingQuest = useRef(false);
-  const dragOrigin = useRef({ pointerX: 0, pointerY: 0, startX: 0, startY: 0 });
-  const didDrag = useRef(false);
-
-  const onPointerDownQuest = (e: React.PointerEvent<HTMLDivElement>) => {
-    isDraggingQuest.current = true;
-    didDrag.current = false;
-    e.currentTarget.setPointerCapture(e.pointerId);
-
-    const rect = e.currentTarget.getBoundingClientRect();
-    dragOrigin.current = {
-      pointerX: e.clientX,
-      pointerY: e.clientY,
-      startX: questPos?.x ?? rect.left,
-      startY: questPos?.y ?? rect.top,
-    };
-  };
-
-  const onPointerMoveQuest = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDraggingQuest.current) return;
-    const dx = e.clientX - dragOrigin.current.pointerX;
-    const dy = e.clientY - dragOrigin.current.pointerY;
-
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      didDrag.current = true;
-    }
-
-    const newX = Math.max(8, Math.min(window.innerWidth - 250, dragOrigin.current.startX + dx));
-    const newY = Math.max(50, Math.min(window.innerHeight - 80, dragOrigin.current.startY + dy));
-    setQuestPos({ x: newX, y: newY });
-  };
-
-  const onPointerUpQuest = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!isDraggingQuest.current) return;
-    try {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    } catch {}
-    isDraggingQuest.current = false;
-  };
+  const [questsExpanded, setQuestsExpanded] = useState(false);
+  const [systemMenuExpanded, setSystemMenuExpanded] = useState(false);
 
   const toggleSound = () => {
     const muted = soundEngine.toggleMute();
@@ -110,7 +70,7 @@ export const HUD: React.FC<HUDProps> = ({
 
   return (
     <div className="absolute inset-0 pointer-events-none select-none z-20 flex flex-col justify-between p-3 md:p-4">
-      {/* TOP BAR: Health Orb, Floor Title, Action Buttons */}
+      {/* TOP BAR: Health Orb, Reduced Level Title + Quests Beside It, Expandable System Menu */}
       <div className="flex justify-between items-start w-full">
         {/* Left: Player Status Cluster */}
         <div className="flex flex-col gap-2 max-w-[280px] md:max-w-sm pointer-events-auto">
@@ -182,158 +142,150 @@ export const HUD: React.FC<HUDProps> = ({
           )}
         </div>
 
-        {/* Center: Floor Indicator */}
-        <div className="hidden sm:flex flex-col items-center bg-[#120d0f]/95 border border-red-950/60 px-4 py-1.5 rounded-lg shadow-md pointer-events-auto">
-          <span className="font-cinzel font-bold text-amber-200 text-sm tracking-wider">{dungeonName}</span>
-          <span className="text-[11px] text-slate-300 font-mono">Floor {currentFloor} · Zelda 3 &amp; Diablo ARPG</span>
-        </div>
-
-        {/* Right: Quick Action Buttons (Inventory, Quests List, Sprites, Controls, Mute) */}
-        <div className="flex items-center gap-1.5 pointer-events-auto">
-          {/* Inventory Button */}
-          <button
-            onClick={onOpenInventory}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#181113] border border-amber-900/60 text-amber-200 text-xs font-medium hover:bg-amber-950/40 active:scale-95 transition shadow-md cursor-pointer"
-            title="Open Character & Inventory"
-          >
-            <Backpack className="w-4 h-4 text-amber-400" />
-            <span className="hidden md:inline">Gear</span>
-          </button>
-
-          {/* Quests List Toggle Button */}
-          <button
-            onClick={() => setQuestsExpanded(!questsExpanded)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md border text-xs font-medium active:scale-95 transition shadow-md cursor-pointer ${
-              questsExpanded
-                ? 'bg-red-950/80 border-red-600 text-red-200'
-                : 'bg-[#181113] border-red-900/60 text-red-200 hover:bg-red-950/40'
-            }`}
-            title="Toggle Quests List"
-          >
-            <Scroll className="w-4 h-4 text-red-400" />
-            <span className="hidden md:inline">Quests</span>
-          </button>
-
-          {/* 16-Bit Sprite Sheets Viewer */}
-          <button
-            onClick={onOpenSpriteSheets}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#181113] border border-purple-900/60 text-purple-200 text-xs font-medium hover:bg-purple-950/40 active:scale-95 transition shadow-md cursor-pointer"
-            title="View Pre-Baked 16-Bit Sprite Sheets & Tiles"
-          >
-            <Layers className="w-4 h-4 text-purple-400" />
-            <span className="hidden md:inline">Sprites</span>
-          </button>
-
-          {/* Ambient Lighting Preset Button */}
-          <button
-            onClick={onCycleAmbientLight}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-[#181113] border border-amber-900/50 text-amber-300 text-xs font-medium hover:bg-amber-950/40 active:scale-95 transition shadow-md cursor-pointer"
-            title={`Ambient Light: ${ambientPreset.toUpperCase()} (Click to toggle)`}
-          >
-            {ambientPreset === 'moody' ? (
-              <Moon className="w-4 h-4 text-amber-400" />
-            ) : ambientPreset === 'balanced' ? (
-              <Moon className="w-4 h-4 text-sky-400" />
-            ) : (
-              <Sun className="w-4 h-4 text-yellow-400" />
-            )}
-            <span className="hidden md:inline capitalize">{ambientPreset}</span>
-          </button>
-
-          {/* Virtual Controls Toggle Button */}
-          <button
-            onClick={onToggleVirtualControls}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs font-medium active:scale-95 transition shadow-md cursor-pointer ${
-              virtualControlsVisible
-                ? 'bg-red-950/80 border-red-600 text-red-200'
-                : 'bg-[#181113] border-slate-800 text-slate-400'
-            }`}
-            title="Toggle On-Screen Virtual Touch Joystick"
-          >
-            <Gamepad2 className="w-4 h-4" />
-          </button>
-
-          {/* Audio Mute Toggle */}
-          <button
-            onClick={toggleSound}
-            className="p-2 rounded-md bg-[#181113] border border-slate-800 text-slate-300 hover:text-white active:scale-95 transition cursor-pointer"
-            title={isMuted ? 'Unmute Sound' : 'Mute Sound'}
-          >
-            {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
-          </button>
-        </div>
-      </div>
-
-      {/* INTERACTIVELY DRAGGABLE & COLLAPSIBLE DYNAMIC QUEST TRACKER */}
-      <div
-        onPointerDown={onPointerDownQuest}
-        onPointerMove={onPointerMoveQuest}
-        onPointerUp={onPointerUpQuest}
-        onPointerCancel={onPointerUpQuest}
-        style={
-          questPos
-            ? { position: 'fixed', left: `${questPos.x}px`, top: `${questPos.y}px`, zIndex: 35 }
-            : undefined
-        }
-        className={`pointer-events-auto touch-none select-none transition-shadow ${
-          questPos ? '' : 'absolute top-16 right-4'
-        } max-w-[230px] md:max-w-[250px] bg-[#120d0f]/95 hover:bg-[#120d0f] border border-amber-950/80 rounded-lg p-2 shadow-2xl backdrop-blur-xs text-xs`}
-      >
-        {/* Drag Handle & Header */}
-        <div className="flex items-center justify-between cursor-grab active:cursor-grabbing pb-1 border-b border-amber-950/40">
-          <div
-            onClick={(e) => {
-              e.stopPropagation();
-              if (!didDrag.current) setQuestsExpanded(!questsExpanded);
-            }}
-            className="flex items-center gap-1.5 font-cinzel font-bold text-amber-200/90 text-[10px] tracking-wide cursor-pointer flex-1"
-          >
-            <Scroll className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span className="truncate">Quests ({quests.filter((q) => q.completed).length}/{quests.length})</span>
-            {questsExpanded ? (
-              <ChevronUp className="w-3 h-3 text-slate-400 shrink-0 ml-auto" />
-            ) : (
-              <ChevronDown className="w-3 h-3 text-slate-400 shrink-0 ml-auto" />
-            )}
+        {/* Center: Reduced Level Title & Quests Window Side-by-Side */}
+        <div className="hidden sm:flex items-center gap-2 pointer-events-auto">
+          {/* Reduced Level Title (greatly reduced in text size & Y height) */}
+          <div className="bg-[#120d0f]/95 border border-red-950/60 px-2 py-1 rounded-md shadow-xs flex items-center gap-1">
+            <span className="font-cinzel font-bold text-amber-200 text-[10px] tracking-wide">{dungeonName}</span>
+            <span className="text-[9px] text-slate-400 font-mono">· F.{currentFloor}</span>
           </div>
-          <div className="flex items-center pl-1.5 text-slate-400 hover:text-amber-300" title="Touch & Drag anywhere to move out of the way">
-            <GripHorizontal className="w-4 h-4 shrink-0" />
-          </div>
-        </div>
 
-        {questsExpanded && (
-          <div className="mt-1.5 space-y-2 max-h-[180px] overflow-y-auto pr-1">
-            {quests.map((q) => (
-              <div key={q.id} className="text-[10px] bg-black/40 p-1.5 rounded border border-amber-950/40">
-                <div className="flex justify-between items-center text-slate-200 font-medium mb-0.5">
-                  <span className="truncate max-w-[140px]" title={q.description}>{q.title}</span>
-                  <span className={`font-mono tabular-nums ${q.completed ? 'text-emerald-400 font-bold' : 'text-amber-400'}`}>
-                    {q.completed ? '✓' : `${q.currentCount}/${q.targetCount}`}
-                  </span>
-                </div>
-                {/* Micro progress bar */}
-                <div className="w-full h-1 bg-slate-900 rounded-xs overflow-hidden">
-                  <div
-                    className={`h-full ${q.completed ? 'bg-emerald-500' : 'bg-amber-500'}`}
-                    style={{ width: `${Math.min(100, (q.currentCount / q.targetCount) * 100)}%` }}
-                  />
-                </div>
-                {/* Claim reward button if completed but unclaimed */}
-                {q.completed && !q.claimed && onClaimQuest && (
-                  <button
-                    onClick={() => onClaimQuest(q.id)}
-                    className="mt-1 w-full py-0.5 px-1.5 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-black font-bold rounded text-[9px] cursor-pointer transition active:scale-95 flex items-center justify-center gap-1"
-                  >
-                    <span>Claim Reward (+{q.goldReward}g)</span>
-                  </button>
-                )}
-                {q.claimed && (
-                  <span className="text-[9px] text-emerald-400/80 font-mono block mt-0.5">Reward Claimed</span>
-                )}
+          {/* Quests Window Beside It */}
+          <div>
+            {!questsExpanded ? (
+              <div
+                onClick={() => setQuestsExpanded(true)}
+                className="flex items-center gap-1 bg-[#120d0f]/95 hover:bg-[#120d0f] border border-amber-900/60 rounded-md px-2 py-1 shadow-xs cursor-pointer active:scale-95 transition text-[9px] text-amber-200"
+                title="Tap to expand quests"
+              >
+                <Scroll className="w-3 h-3 text-amber-400 shrink-0" />
+                <span className="font-cinzel font-bold tracking-wide">
+                  Quests ({quests.filter((q) => q.completed).length}/{quests.length})
+                </span>
               </div>
-            ))}
+            ) : (
+              <div className="w-[160px] md:w-[180px] bg-[#120d0f]/95 border border-amber-900/70 rounded-lg p-1.5 shadow-2xl backdrop-blur-xs text-[9px] text-slate-200">
+                <div
+                  onClick={() => setQuestsExpanded(false)}
+                  className="flex items-center justify-between pb-1 mb-1 border-b border-amber-950/60 cursor-pointer hover:text-amber-300 transition"
+                  title="Tap anywhere to collapse"
+                >
+                  <div className="flex items-center gap-1 font-cinzel font-bold text-amber-200 text-[9px]">
+                    <Scroll className="w-3 h-3 text-amber-400 shrink-0" />
+                    <span>Quests ({quests.filter((q) => q.completed).length}/{quests.length})</span>
+                  </div>
+                  <ChevronUp className="w-3 h-3 text-amber-400 shrink-0" />
+                </div>
+                <div className="space-y-1 max-h-[140px] overflow-y-auto pr-0.5">
+                  {quests.map((q) => (
+                    <div key={q.id} className="bg-black/50 p-1 rounded border border-amber-950/50">
+                      <div className="flex justify-between items-center text-slate-200 font-medium mb-0.5">
+                        <span className="truncate max-w-[100px] font-cinzel text-[8px]" title={q.description}>
+                          {q.title}
+                        </span>
+                        <span className={`font-mono tabular-nums text-[8px] ${q.completed ? 'text-emerald-400 font-bold' : 'text-amber-400'}`}>
+                          {q.completed ? 'DONE' : `${q.currentCount}/${q.targetCount}`}
+                        </span>
+                      </div>
+                      <div className="w-full h-1 bg-slate-950 rounded-full overflow-hidden border border-amber-950/40">
+                        <div
+                          className={`h-full transition-all duration-300 ${q.completed ? 'bg-gradient-to-r from-emerald-600 to-emerald-400' : 'bg-gradient-to-r from-amber-600 to-amber-400'}`}
+                          style={{ width: `${Math.min(100, (q.currentCount / q.targetCount) * 100)}%` }}
+                        />
+                      </div>
+                      {q.completed && !q.claimed && onClaimQuest && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onClaimQuest(q.id);
+                          }}
+                          className="mt-1 w-full py-0.5 px-1 bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-black font-bold rounded text-[8px] cursor-pointer transition active:scale-95 flex items-center justify-center gap-0.5 shadow-sm font-cinzel"
+                        >
+                          <span>Claim (+{q.goldReward}g)</span>
+                        </button>
+                      )}
+                      {q.claimed && (
+                        <span className="text-[7px] text-emerald-400/80 font-mono block mt-0.5 text-right">✓ Claimed</span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* Right: Expandable Overlay System Buttons Bar */}
+        <div className="relative pointer-events-auto flex items-center">
+          <button
+            onClick={() => setSystemMenuExpanded(!systemMenuExpanded)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-[#181113] border border-amber-900/60 text-amber-200 text-xs font-medium hover:bg-amber-950/40 active:scale-95 transition shadow-md cursor-pointer"
+            title="Toggle System Menu"
+          >
+            <Sliders className="w-4 h-4 text-amber-400" />
+            <span className="hidden md:inline">Menu</span>
+            <ChevronDown className={`w-3 h-3 transition-transform ${systemMenuExpanded ? 'rotate-180' : ''}`} />
+          </button>
+
+          {systemMenuExpanded && (
+            <div className="absolute right-0 top-10 flex items-center gap-1.5 p-2 bg-[#120d0f]/95 border border-amber-950/80 rounded-lg shadow-2xl backdrop-blur-xs z-40">
+              {/* Inventory Button */}
+              <button
+                onClick={() => { onOpenInventory(); setSystemMenuExpanded(false); }}
+                className="p-2 rounded-md bg-[#181113] border border-amber-900/60 text-amber-200 hover:bg-amber-950/40 active:scale-95 transition shadow-sm cursor-pointer"
+                title="Character & Inventory"
+              >
+                <Backpack className="w-4 h-4 text-amber-400" />
+              </button>
+
+              {/* Sprites Viewer */}
+              <button
+                onClick={() => { onOpenSpriteSheets(); setSystemMenuExpanded(false); }}
+                className="p-2 rounded-md bg-[#181113] border border-purple-900/60 text-purple-200 hover:bg-purple-950/40 active:scale-95 transition shadow-sm cursor-pointer"
+                title="16-Bit Sprite Sheets"
+              >
+                <Layers className="w-4 h-4 text-purple-400" />
+              </button>
+
+              {/* Ambient Light */}
+              <button
+                onClick={onCycleAmbientLight}
+                className="p-2 rounded-md bg-[#181113] border border-amber-900/50 text-amber-300 hover:bg-amber-950/40 active:scale-95 transition shadow-sm cursor-pointer"
+                title={`Ambient Light: ${ambientPreset.toUpperCase()}`}
+              >
+                {ambientPreset === 'moody' ? (
+                  <Moon className="w-4 h-4 text-amber-400" />
+                ) : ambientPreset === 'balanced' ? (
+                  <Moon className="w-4 h-4 text-sky-400" />
+                ) : (
+                  <Sun className="w-4 h-4 text-yellow-400" />
+                )}
+              </button>
+
+              {/* Virtual Controls */}
+              <button
+                onClick={onToggleVirtualControls}
+                className={`p-2 rounded-md border active:scale-95 transition shadow-sm cursor-pointer ${
+                  virtualControlsVisible
+                    ? 'bg-red-950/80 border-red-600 text-red-200'
+                    : 'bg-[#181113] border-slate-800 text-slate-400'
+                }`}
+                title="Toggle Virtual Controls"
+              >
+                <Gamepad2 className="w-4 h-4" />
+              </button>
+
+              {/* Audio Mute */}
+              <button
+                onClick={toggleSound}
+                className="p-2 rounded-md bg-[#181113] border border-slate-800 text-slate-300 hover:text-white active:scale-95 transition cursor-pointer"
+                title={isMuted ? 'Unmute' : 'Mute'}
+              >
+                {isMuted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Spacer to maintain vertical balance */}

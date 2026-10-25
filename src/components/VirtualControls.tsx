@@ -125,24 +125,10 @@ export const VirtualControls: React.FC = () => {
         </div>
       </div>
 
-      {/* RIGHT: Action Clusters (Sword, Shield, Spin, Dash, Potion) */}
-      <div className="pointer-events-auto flex items-end gap-3 touch-none">
-        {/* Secondary cluster: Dash, Potion, Spin */}
-        <div className="flex flex-col gap-2.5 items-center mb-1">
-          {/* Potion Button */}
-          <button
-            onPointerDown={(e) => {
-              e.preventDefault();
-              triggerHaptic(20);
-              inputManager.mobilePotionJustPressed = true;
-            }}
-            className="w-12 h-12 rounded-full bg-emerald-950/90 border-2 border-emerald-500 text-emerald-300 flex items-center justify-center shadow-lg active:scale-90 active:bg-emerald-800 transition cursor-pointer touch-none"
-            title="Drink Health Potion"
-            style={{ touchAction: 'none' }}
-          >
-            <Heart className="w-5 h-5 fill-emerald-500/50" />
-          </button>
-
+      {/* RIGHT: Action Clusters (Anchored further left to avoid Android edge buttons, Heart button at bottom left) */}
+      <div className="pointer-events-auto flex items-end gap-3 touch-none mr-6 md:mr-10">
+        {/* Secondary cluster: Dash, Spin, and Heart at bottom left */}
+        <div className="flex flex-col justify-end gap-2.5 items-center pb-1">
           {/* Dash / Roll Button */}
           <button
             onPointerDown={(e) => {
@@ -177,6 +163,20 @@ export const VirtualControls: React.FC = () => {
             style={{ touchAction: 'none' }}
           >
             <Sparkles className="w-5 h-5" />
+          </button>
+
+          {/* Potion Button (Heart) moved to bottom left */}
+          <button
+            onPointerDown={(e) => {
+              e.preventDefault();
+              triggerHaptic(20);
+              inputManager.mobilePotionJustPressed = true;
+            }}
+            className="w-12 h-12 rounded-full bg-emerald-950/90 border-2 border-emerald-500 text-emerald-300 flex items-center justify-center shadow-lg active:scale-90 active:bg-emerald-800 transition cursor-pointer touch-none mt-1"
+            title="Drink Health Potion"
+            style={{ touchAction: 'none' }}
+          >
+            <Heart className="w-5 h-5 fill-emerald-500/50" />
           </button>
         </div>
 
