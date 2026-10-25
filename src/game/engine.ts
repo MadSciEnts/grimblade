@@ -783,7 +783,12 @@ export class GameEngine {
         }
 
         // 2. Dynamic Lighting via Per-Block Normal Map Sampling (N · L)
-        const normalKey = t === 3 ? 'tile_wall_front_normal' : t === 2 ? 'tile_wall_top_normal' : t === 4 ? 'tile_pillar_normal' : 'tile_floor_normal';
+        const normalKey =
+          t === 3 ? 'tile_wall_front_normal' :
+          t === 2 ? 'tile_wall_top_normal' :
+          t === 4 ? 'tile_pillar_normal' :
+          t === 6 ? 'tile_stairs_normal' :
+          'tile_floor_normal';
         const blockSize = 4;
         const normObj = { nx: 0, ny: 0, nz: 1 };
         const tcz = getTileNormal(t).zHeight;

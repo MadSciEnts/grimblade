@@ -405,6 +405,25 @@ class TextureAtlas {
     pnCtx.fillRect(22, 2, 6, 28);
     this.cache.set('tile_pillar_normal', pillarNorm);
     this.storeNormalData('tile_pillar_normal', pillarNorm);
+
+    // 5. Stairs Normal Map: matches tile_stairs 4 horizontal descending steps
+    const [stairsNorm, snCtx] = this.createCanvas(32, 32);
+    snCtx.fillStyle = 'rgb(128, 128, 255)';
+    snCtx.fillRect(0, 0, 32, 32);
+    for (let i = 0; i < 4; i++) {
+      const y = i * 8;
+      // Step tread surface
+      snCtx.fillStyle = 'rgb(128, 100, 240)';
+      snCtx.fillRect(2, y, 28, 5);
+      // Step top edge highlight bevel
+      snCtx.fillStyle = 'rgb(128, 70, 220)';
+      snCtx.fillRect(2, y, 28, 2);
+      // Step vertical riser face
+      snCtx.fillStyle = 'rgb(128, 220, 180)';
+      snCtx.fillRect(2, y + 5, 28, 2);
+    }
+    this.cache.set('tile_stairs_normal', stairsNorm);
+    this.storeNormalData('tile_stairs_normal', stairsNorm);
   }
 
   private generateDecorations() {
