@@ -1,0 +1,28 @@
+apply plugin: 'com.android.application'
+
+android {
+    namespace "com.grimblade.arpg"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.grimblade.arpg"
+        minSdk 22
+        targetSdk 34
+        versionCode 1
+        versionName "1.0.0"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation project(':capacitor-android')
+}

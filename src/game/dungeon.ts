@@ -98,21 +98,28 @@ export function generateDungeonLevel(depth: number): {
   }
 
   // Apply Zelda 3 2.5D Walls around all floor tiles!
-  // In Zelda 3: If tile below is floor and this tile is void -> wall_front (3).
-  // If tile below is wall_front and this tile is void -> wall_top (2).
+  // Pass 1: Direct north wall front face facing south towards room -> wall_front (3)
   for (let y = 0; y < height - 1; y++) {
     for (let x = 0; x < width; x++) {
-      if (tiles[y][x] === 0) {
-        // Check if adjacent to floor
-        const hasFloorBelow = y < height - 1 && tiles[y + 1][x] === 1;
-        const hasFloorSide = (x > 0 && tiles[y][x - 1] === 1) || (x < width - 1 && tiles[y][x + 1] === 1);
-        const hasFloorDiag = (x > 0 && y < height - 1 && tiles[y + 1][x - 1] === 1) || (x < width - 1 && y < height - 1 && tiles[y + 1][x + 1] === 1);
+      if (tiles[y][x] === 0 && y < height - 1 && tiles[y + 1][x] === 1) {
+        tiles[y][x] = 3; // Wall Front
+      }
+    }
+  }
 
-        if (hasFloorBelow || hasFloorSide || hasFloorDiag) {
-          tiles[y][x] = 3; // Wall Front
-          if (y > 0 && tiles[y - 1][x] === 0) {
-            tiles[y - 1][x] = 2; // Wall Top
-          }
+  // Pass 2: Side walls, diagonal walls, and wall depth coping surfaces -> wall_top (2)
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (tiles[y][x] === 0) {
+        const hasFloorAbove = y > 0 && tiles[y - 1][x] === 1;
+        const hasFloorSide = (x > 0 && tiles[y][x - 1] === 1) || (x < width - 1 && tiles[y][x + 1] === 1);
+        const hasWallFrontBelow = y < height - 1 && tiles[y + 1][x] === 3;
+        const hasWallFrontNearby = (x > 0 && tiles[y][x - 1] === 3) || (x < width - 1 && tiles[y][x + 1] === 3) || (y > 0 && tiles[y - 1][x] === 3);
+        const hasFloorDiag = (x > 0 && y < height - 1 && tiles[y + 1][x - 1] === 1) || (x < width - 1 && y < height - 1 && tiles[y + 1][x + 1] === 1) ||
+                             (x > 0 && y > 0 && tiles[y - 1][x - 1] === 1) || (x < width - 1 && y > 0 && tiles[y - 1][x + 1] === 1);
+
+        if (hasFloorSide || hasFloorAbove || hasWallFrontBelow || hasWallFrontNearby || hasFloorDiag) {
+          tiles[y][x] = 2; // Wall Top (coping / side wall / top depth)
         }
       }
     }

@@ -113,6 +113,41 @@ class TextureAtlas {
     return this.cache.get(key);
   }
 
+  private normalDataCache: Map<string, Float32Array> = new Map();
+
+  private storeNormalData(key: string, canvas: HTMLCanvasElement) {
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const imgData = ctx.getImageData(0, 0, 32, 32);
+    const data = imgData.data;
+    const normals = new Float32Array(32 * 32 * 3);
+    for (let i = 0; i < 32 * 32; i++) {
+      const r = data[i * 4];
+      const g = data[i * 4 + 1];
+      const b = data[i * 4 + 2];
+      normals[i * 3] = (r - 128) / 127;
+      normals[i * 3 + 1] = (g - 128) / 127;
+      normals[i * 3 + 2] = (b - 128) / 127;
+    }
+    this.normalDataCache.set(key, normals);
+  }
+
+  public getNormalAt(key: string, localX: number, localY: number, target: { nx: number; ny: number; nz: number }) {
+    const normals = this.normalDataCache.get(key);
+    const lx = Math.max(0, Math.min(31, Math.floor(localX)));
+    const ly = Math.max(0, Math.min(31, Math.floor(localY)));
+    if (!normals) {
+      target.nx = 0;
+      target.ny = 0;
+      target.nz = 1;
+      return;
+    }
+    const idx = (ly * 32 + lx) * 3;
+    target.nx = normals[idx];
+    target.ny = normals[idx + 1];
+    target.nz = normals[idx + 2];
+  }
+
   // Generate 2.5D Zelda 3 Tiles (32x32 pixels each) with distinct material palettes
   private generateTiles() {
     // 1. Dungeon Floor: Cold Slate-Granite Pavers (Blue-Gray Hue)
@@ -266,86 +301,110 @@ class TextureAtlas {
     this.cache.set('tile_stairs', stairs);
   }
 
-  // Pre-generate standard Tangent-Space RGB Normal Maps for dynamic lighting (R=Nx, G=Ny, B=Nz)
+  // Pre-generate standard Tangent-Space RGB Normal Maps for dynamic lighting (R=Nx, G=Ny, B=Nz) matching textures 1:1
   private generateNormalMaps() {
-    // 1. Floor Normal Map: horizontal facing +Z (128, 128, 255) with 4-way paver bevels
+    // 1. Floor Normal Map: matches tile_floor geometry precisely
     const [floorNorm, fnCtx] = this.createCanvas(32, 32);
     fnCtx.fillStyle = 'rgb(128, 128, 255)'; // Flat +Z normal
     fnCtx.fillRect(0, 0, 32, 32);
-    // Paver 1 bevels
-    fnCtx.fillStyle = 'rgb(128, 55, 230)'; // Top bevel: tilted up (-Y)
-    fnCtx.fillRect(1, 1, 14, 2);
-    fnCtx.fillRect(17, 1, 14, 2);
-    fnCtx.fillRect(1, 17, 14, 2);
-    fnCtx.fillRect(17, 17, 14, 2);
-    fnCtx.fillStyle = 'rgb(128, 201, 230)'; // Bottom bevel: tilted down (+Y)
-    fnCtx.fillRect(1, 13, 14, 2);
-    fnCtx.fillRect(17, 13, 14, 2);
-    fnCtx.fillRect(1, 29, 14, 2);
-    fnCtx.fillRect(17, 29, 14, 2);
-    fnCtx.fillStyle = 'rgb(55, 128, 230)'; // Left bevel: tilted left (-X)
-    fnCtx.fillRect(1, 1, 2, 14);
-    fnCtx.fillRect(17, 1, 2, 14);
-    fnCtx.fillRect(1, 17, 2, 14);
-    fnCtx.fillRect(17, 17, 2, 14);
-    fnCtx.fillStyle = 'rgb(201, 128, 230)'; // Right bevel: tilted right (+X)
-    fnCtx.fillRect(13, 1, 2, 14);
-    fnCtx.fillRect(29, 1, 2, 14);
-    fnCtx.fillRect(13, 17, 2, 14);
-    fnCtx.fillRect(29, 17, 2, 14);
+    // Mortar recesses
+    fnCtx.fillStyle = 'rgb(128, 128, 200)';
+    fnCtx.fillRect(0, 15, 32, 2);
+    fnCtx.fillRect(15, 0, 2, 32);
+    // 4 Pavers bevels matching tile_floor exactly
+    const pavers = [
+      { x: 1, y: 1, w: 14, h: 14 },
+      { x: 17, y: 1, w: 14, h: 14 },
+      { x: 1, y: 17, w: 14, h: 14 },
+      { x: 17, y: 17, w: 14, h: 14 },
+    ];
+    for (const p of pavers) {
+      // Top bevel
+      fnCtx.fillStyle = 'rgb(128, 77, 204)';
+      fnCtx.fillRect(p.x, p.y, p.w, 2);
+      // Left bevel
+      fnCtx.fillStyle = 'rgb(51, 128, 204)';
+      fnCtx.fillRect(p.x, p.y, 2, p.h);
+      // Bottom shadow
+      fnCtx.fillStyle = 'rgb(128, 179, 204)';
+      fnCtx.fillRect(p.x, p.y + p.h - 2, p.w, 2);
+      // Right shadow
+      fnCtx.fillStyle = 'rgb(204, 128, 204)';
+      fnCtx.fillRect(p.x + p.w - 2, p.y, 2, p.h);
+    }
     this.cache.set('tile_floor_normal', floorNorm);
+    this.storeNormalData('tile_floor_normal', floorNorm);
 
-    // 2. Wall Front Normal Map: Vertical face facing south (+Y) toward player/camera
+    // 2. Wall Front Normal Map: matches tile_wall_front geometry precisely (3 rows of staggered ashlar bricks)
     const [wallFrontNorm, wfnCtx] = this.createCanvas(32, 32);
-    // Base normal: Nx=0, Ny=0.94, Nz=0.34 -> RGB(128, 248, 171)
-    wfnCtx.fillStyle = 'rgb(128, 248, 171)';
+    wfnCtx.fillStyle = 'rgb(128, 242, 178)'; // Base wall face (+Y)
     wfnCtx.fillRect(0, 0, 32, 32);
-    // Brick top bevels (facing slightly up toward ceiling): Ny=0.45, Nz=0.89 -> RGB(128, 185, 241)
-    wfnCtx.fillStyle = 'rgb(128, 185, 241)';
-    wfnCtx.fillRect(1, 1, 14, 1);
-    wfnCtx.fillRect(17, 1, 14, 1);
-    wfnCtx.fillRect(1, 11, 6, 1);
-    wfnCtx.fillRect(9, 11, 14, 1);
-    wfnCtx.fillRect(25, 11, 6, 1);
-    wfnCtx.fillRect(1, 21, 14, 1);
-    wfnCtx.fillRect(17, 21, 14, 1);
-    // Brick bottom overhangs (steep +Y): Ny=0.98, Nz=0.20 -> RGB(128, 252, 153)
-    wfnCtx.fillStyle = 'rgb(128, 252, 153)';
-    wfnCtx.fillRect(1, 7, 14, 2);
-    wfnCtx.fillRect(17, 7, 14, 2);
-    wfnCtx.fillRect(9, 17, 14, 2);
-    // Left brick bevels (Nx=-0.6, Ny=0.75, Nz=0.28) -> RGB(52, 223, 163)
-    wfnCtx.fillStyle = 'rgb(52, 223, 163)';
-    wfnCtx.fillRect(1, 1, 1, 7);
-    wfnCtx.fillRect(17, 1, 1, 7);
-    wfnCtx.fillRect(9, 11, 1, 7);
-    // Right brick bevels (Nx=0.6, Ny=0.75, Nz=0.28) -> RGB(204, 223, 163)
-    wfnCtx.fillStyle = 'rgb(204, 223, 163)';
-    wfnCtx.fillRect(14, 1, 1, 7);
-    wfnCtx.fillRect(30, 1, 1, 7);
-    wfnCtx.fillRect(22, 11, 1, 7);
+    // Mortar grooves
+    wfnCtx.fillStyle = 'rgb(128, 192, 219)';
+    wfnCtx.fillRect(0, 0, 32, 1);
+    wfnCtx.fillRect(0, 9, 32, 2);
+    wfnCtx.fillRect(0, 19, 32, 2);
+    wfnCtx.fillRect(0, 29, 32, 3);
+    wfnCtx.fillRect(15, 0, 2, 10);
+    wfnCtx.fillRect(7, 10, 2, 10);
+    wfnCtx.fillRect(23, 10, 2, 10);
+    wfnCtx.fillRect(15, 20, 2, 10);
+
+    const bricks = [
+      // Row 1
+      { x: 1, y: 1, w: 14, h: 8 },
+      { x: 17, y: 1, w: 14, h: 8 },
+      // Row 2
+      { x: 1, y: 11, w: 6, h: 8 },
+      { x: 9, y: 11, w: 14, h: 8 },
+      { x: 25, y: 11, w: 6, h: 8 },
+      // Row 3
+      { x: 1, y: 21, w: 14, h: 8 },
+      { x: 17, y: 21, w: 14, h: 8 },
+    ];
+    for (const b of bricks) {
+      // Top bevel
+      wfnCtx.fillStyle = 'rgb(128, 179, 230)';
+      wfnCtx.fillRect(b.x, b.y, b.w, 1);
+      // Bottom overhang
+      wfnCtx.fillStyle = 'rgb(128, 249, 166)';
+      wfnCtx.fillRect(b.x, b.y + b.h - 2, b.w, 2);
+      // Left bevel
+      wfnCtx.fillStyle = 'rgb(64, 230, 173)';
+      wfnCtx.fillRect(b.x, b.y, 1, b.h - 1);
+      // Right bevel
+      wfnCtx.fillStyle = 'rgb(192, 230, 173)';
+      wfnCtx.fillRect(b.x + b.w - 1, b.y, 1, b.h - 1);
+    }
     this.cache.set('tile_wall_front_normal', wallFrontNorm);
+    this.storeNormalData('tile_wall_front_normal', wallFrontNorm);
 
-    // 3. Wall Top Normal Map: Coping surface facing up/back (Ny=-0.28, Nz=0.96 -> RGB(128, 92, 250))
+    // 3. Wall Top Normal Map: matches tile_wall_top coping surface & vertical joints
     const [wallTopNorm, wtnCtx] = this.createCanvas(32, 32);
-    wtnCtx.fillStyle = 'rgb(128, 92, 250)';
+    wtnCtx.fillStyle = 'rgb(128, 89, 249)'; // Coping top
     wtnCtx.fillRect(0, 0, 32, 32);
-    // Front lip overhang (Ny=0.8, Nz=0.6 -> RGB(128, 230, 205))
-    wtnCtx.fillStyle = 'rgb(128, 230, 205)';
-    wtnCtx.fillRect(0, 28, 32, 4);
+    // Vertical coping stone joints
+    wtnCtx.fillStyle = 'rgb(100, 89, 230)';
+    wtnCtx.fillRect(10, 0, 2, 27);
+    wtnCtx.fillRect(22, 0, 2, 27);
+    // Front lip overhang at bottom
+    wtnCtx.fillStyle = 'rgb(128, 230, 204)';
+    wtnCtx.fillRect(0, 27, 32, 5);
     this.cache.set('tile_wall_top_normal', wallTopNorm);
+    this.storeNormalData('tile_wall_top_normal', wallTopNorm);
 
-    // 4. Pillar Normal Map: Fluted cylinder (Left Nx < 0, Center Ny > 0, Right Nx > 0)
+    // 4. Pillar Normal Map: matches tile_pillar column geometry
     const [pillarNorm, pnCtx] = this.createCanvas(32, 32);
     pnCtx.fillStyle = 'rgb(128, 128, 255)';
     pnCtx.fillRect(0, 0, 32, 32);
-    pnCtx.fillStyle = 'rgb(40, 180, 180)'; // Left curvature
-    pnCtx.fillRect(4, 2, 7, 28);
-    pnCtx.fillStyle = 'rgb(128, 240, 175)'; // Center south
-    pnCtx.fillRect(11, 2, 10, 28);
-    pnCtx.fillStyle = 'rgb(216, 180, 180)'; // Right curvature
-    pnCtx.fillRect(21, 2, 7, 28);
+    pnCtx.fillStyle = 'rgb(51, 179, 204)'; // Left cylinder curvature
+    pnCtx.fillRect(4, 2, 6, 28);
+    pnCtx.fillStyle = 'rgb(128, 242, 178)'; // Center column face
+    pnCtx.fillRect(10, 2, 12, 28);
+    pnCtx.fillStyle = 'rgb(204, 179, 204)'; // Right cylinder curvature
+    pnCtx.fillRect(22, 2, 6, 28);
     this.cache.set('tile_pillar_normal', pillarNorm);
+    this.storeNormalData('tile_pillar_normal', pillarNorm);
   }
 
   private generateDecorations() {
@@ -417,9 +476,13 @@ class TextureAtlas {
     ctx.save();
     ctx.translate(Math.round(x), Math.round(y));
 
-    // Shadow on floor
+    // Shadow on floor (Soft and dark radial gradient)
     const shadowWidth = (facing === 'left' || facing === 'right') ? 8 : 10;
-    ctx.fillStyle = 'rgba(0,0,0,0.45)';
+    const shadowGrad = ctx.createRadialGradient(0, 12, 0, 0, 12, shadowWidth + 2);
+    shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
+    shadowGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.5)');
+    shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = shadowGrad;
     ctx.beginPath();
     ctx.ellipse(0, 12, shadowWidth, 5, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -531,6 +594,9 @@ class TextureAtlas {
     // 2. DIRECTION: UP (Back View - Hero looking into dungeon darkness)
     // =========================================================================
     else if (facing === 'up') {
+      // Shield drawn first when facing up so player is drawn after the shield
+      this.renderShield(ctx, facing, isShielding, walkBob, equipment.shield);
+
       // Boots: Back of calves & heels pointing up
       ctx.fillStyle = equipment.boots.color || PALETTE.ironDark;
       ctx.fillRect(-6, 8 + walkBob - legOffset, 4, 5);
@@ -764,34 +830,38 @@ class TextureAtlas {
         ctx.fillRect(sx + 1, sy + 1 + walkBob, 3, 3);
       }
     } else {
-      // Held at side according to directional facing!
+      // Different textures for Front (down), Back (up), and Sides (left/right)
       if (facing === 'down') {
-        // Left arm at side (viewer's left)
+        // FRONT (Hip / Side carry): Metallic shield face
         ctx.fillStyle = shieldColor;
-        ctx.fillRect(-11, -3 + walkBob, 5, 11);
+        ctx.fillRect(-11, -3 + walkBob, 6, 12);
         ctx.fillStyle = PALETTE.ironLight;
-        ctx.fillRect(-11, -3 + walkBob, 5, 2);
-        if (durRatio < 0.5) {
-          ctx.fillStyle = PALETTE.voidBlack;
-          ctx.fillRect(-10, 2 + walkBob, 3, 1);
-        }
+        ctx.fillRect(-11, -3 + walkBob, 6, 2);
+        ctx.fillStyle = PALETTE.goldMid;
+        ctx.fillRect(-9, 1 + walkBob, 2, 4); // Center boss
       } else if (facing === 'up') {
-        // Back of shield: dark wood backing and iron strap
+        // BACK (Strapped to back): Dark wood backing with vertical iron strapping & rivets
         ctx.fillStyle = PALETTE.woodDark;
-        ctx.fillRect(-10, -5 + walkBob, 4, 11);
+        ctx.fillRect(-10, -5 + walkBob, 6, 12);
         ctx.fillStyle = PALETTE.ironDark;
-        ctx.fillRect(-10, -1 + walkBob, 4, 2); // Iron arm strap bracket
+        ctx.fillRect(-8, -5 + walkBob, 2, 12); // Vertical iron spine
+        ctx.fillStyle = PALETTE.ironBright;
+        ctx.fillRect(-8, -3 + walkBob, 2, 2); // Rivet 1
+        ctx.fillRect(-8, 3 + walkBob, 2, 2);  // Rivet 2
       } else if (facing === 'left') {
-        // Forearm shield in FOREGROUND defending left side
+        // LEFT SIDE (Foreground forearm shield): Curved side profile
         ctx.fillStyle = shieldColor;
         ctx.fillRect(-10, -4 + walkBob, 5, 12);
-        ctx.fillStyle = PALETTE.goldMid;
+        ctx.fillStyle = PALETTE.ironLight;
         ctx.fillRect(-10, -4 + walkBob, 5, 2);
-        ctx.fillRect(-8, -1 + walkBob, 2, 6);
+        ctx.fillStyle = PALETTE.goldMid;
+        ctx.fillRect(-9, 1 + walkBob, 3, 2); // Side ridge boss
       } else {
-        // Right facing: shield is in background behind torso
+        // RIGHT SIDE (Background arm shield): Narrow side profile
         ctx.fillStyle = shieldColor;
-        ctx.fillRect(-7, -2 + walkBob, 3, 9);
+        ctx.fillRect(-7, -2 + walkBob, 4, 10);
+        ctx.fillStyle = PALETTE.ironDark;
+        ctx.fillRect(-7, -2 + walkBob, 4, 2);
       }
     }
     ctx.restore();
@@ -887,9 +957,13 @@ class TextureAtlas {
     ctx.save();
     ctx.translate(Math.round(enemy.x), Math.round(enemy.y));
 
-    // Shadow
+    // Shadow (Soft and dark radial gradient)
     const shadowRadius = enemy.isBoss ? 24 : enemy.type === 'abomination' ? 16 : 10;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    const shadowGrad = ctx.createRadialGradient(0, 10, 0, 0, 10, shadowRadius);
+    shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
+    shadowGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.5)');
+    shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = shadowGrad;
     ctx.beginPath();
     ctx.ellipse(0, 10, shadowRadius, shadowRadius * 0.45, 0, 0, Math.PI * 2);
     ctx.fill();
@@ -905,56 +979,54 @@ class TextureAtlas {
 
     switch (enemy.type) {
       case 'slime': {
-        // Green Acid Slime with wobble squash
-        const squash = enemy.animFrame % 2 === 1 ? 1.2 : 0.9;
-        ctx.fillStyle = PALETTE.slimeAcidDark;
-        ctx.beginPath();
-        ctx.ellipse(0, 4, 11 * squash, 8 / squash, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.fillStyle = PALETTE.slimeAcid;
-        ctx.beginPath();
-        ctx.ellipse(0, 2, 9 * squash, 6 / squash, 0, 0, Math.PI * 2);
-        ctx.fill();
+        // Pixel-art green acid slime with wobble squash & stretch
+        const squish = enemy.animFrame % 2 === 1;
+        const w = squish ? 14 : 10;
+        const h = squish ? 7 : 10;
+        const yOffset = squish ? 4 : 2;
 
-        // Slime eyes
+        // Outer dark acid shadow block
+        ctx.fillStyle = PALETTE.slimeAcidDark;
+        ctx.fillRect(-w - 1, yOffset - 1, (w + 1) * 2, h + 2);
+
+        // Inner bright acid body
+        ctx.fillStyle = PALETTE.slimeAcid;
+        ctx.fillRect(-w, yOffset, w * 2, h);
+
+        // Top highlight blocks
+        ctx.fillStyle = PALETTE.slimeAcidGlow;
+        ctx.fillRect(-w + 2, yOffset + 1, 4, 2);
+
+        // Slime eyes (pixel blocks)
         if (damageRatio < 0.7) {
           ctx.fillStyle = PALETTE.voidBlack;
-          ctx.fillRect(-4, -1, 2, 3);
-          ctx.fillRect(2, -1, 2, 3);
+          ctx.fillRect(-4, yOffset + 3, 2, 2);
+          ctx.fillRect(2, yOffset + 3, 2, 2);
           ctx.fillStyle = '#ffffff';
-          ctx.fillRect(-4, -1, 1, 1);
-          ctx.fillRect(2, -1, 1, 1);
+          ctx.fillRect(-4, yOffset + 3, 1, 1);
+          ctx.fillRect(2, yOffset + 3, 1, 1);
         }
 
         // PROPORTIONAL CHUNK REMOVAL ON SLIME
         if (damageRatio >= 0.20) {
-          // Left lower lobe bitten/sheared away with dark acid cavity
           ctx.fillStyle = PALETTE.voidBlack;
-          ctx.fillRect(-9, 1, 4, 5);
+          ctx.fillRect(-w - 2, yOffset + 3, 4, 4);
           ctx.fillStyle = PALETTE.slimeAcidDark;
-          ctx.fillRect(-8, 3, 3, 4);
+          ctx.fillRect(-w - 1, yOffset + 4, 3, 3);
           ctx.fillStyle = PALETTE.slimeAcidGlow;
-          ctx.fillRect(-10, 6, 2, 2); // Dripping acid droplet
+          ctx.fillRect(-w - 2, yOffset + 7, 2, 2);
         }
         if (damageRatio >= 0.45) {
-          // Top right crest hacked off, exposed leaking core
           ctx.fillStyle = PALETTE.voidBlack;
-          ctx.fillRect(3, -4, 5, 5);
+          ctx.fillRect(w - 3, yOffset - 2, 5, 4);
           ctx.fillStyle = '#10281b';
-          ctx.fillRect(2, -2, 4, 4);
-          ctx.fillStyle = PALETTE.slimeAcidGlow;
-          ctx.fillRect(7, -1, 2, 2);
+          ctx.fillRect(w - 2, yOffset - 1, 3, 3);
         }
         if (damageRatio >= 0.70) {
-          // Over 50% collapsed into a ragged, bubbling acid stump with exposed necrotic nucleus
           ctx.fillStyle = PALETTE.voidBlack;
-          ctx.fillRect(-6, -6, 12, 6);
-          ctx.fillRect(2, 0, 8, 8);
+          ctx.fillRect(-6, yOffset - 3, 12, 5);
           ctx.fillStyle = '#0a1a12';
-          ctx.fillRect(-3, 0, 6, 5); // Necrotic core
-          ctx.fillStyle = PALETTE.slimeAcidGlow;
-          ctx.fillRect(-5, 4, 2, 2);
-          ctx.fillRect(4, 5, 2, 2);
+          ctx.fillRect(-3, yOffset - 1, 6, 4);
         }
         break;
       }

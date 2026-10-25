@@ -284,7 +284,7 @@ export const HUD: React.FC<HUDProps> = ({
             : undefined
         }
         className={`pointer-events-auto touch-none select-none transition-shadow ${
-          questPos ? '' : 'self-end mb-auto mt-2'
+          questPos ? '' : 'absolute top-16 right-4'
         } max-w-[230px] md:max-w-[250px] bg-[#120d0f]/95 hover:bg-[#120d0f] border border-amber-950/80 rounded-lg p-2 shadow-2xl backdrop-blur-xs text-xs`}
       >
         {/* Drag Handle & Header */}
@@ -332,20 +332,8 @@ export const HUD: React.FC<HUDProps> = ({
         )}
       </div>
 
-      {/* Control Hint Line (Bottom Center, Unobtrusive) */}
-      <div className="self-center hidden md:flex items-center gap-4 text-[11px] text-slate-300 font-mono bg-[#120d0f]/90 px-4 py-1.5 rounded-full border border-slate-800/80 pointer-events-auto shadow-md">
-        <span>WASD / Joystick Move</span>
-        <span>·</span>
-        <span>Space Slash</span>
-        <span>·</span>
-        <span>Shift Shield Block</span>
-        <span>·</span>
-        <span>Q Spin Attack</span>
-        <span>·</span>
-        <span>E Dash</span>
-        <span>·</span>
-        <span>1 Potion</span>
-      </div>
+      {/* Spacer to maintain vertical balance */}
+      <div className="shrink-0" />
     </div>
   );
 };

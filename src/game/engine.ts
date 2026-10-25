@@ -374,10 +374,12 @@ export class GameEngine {
         const dist = Math.hypot(targetPlayer.x - enemy.x, targetPlayer.y - enemy.y);
 
         if (dist < 180) {
-          // Chase Player
+          // Chase Player (speed slows down as enemy takes damage / loses health)
+          const healthRatio = Math.max(0.25, enemy.hp / Math.max(1, enemy.maxHp));
+          const currentSpeed = enemy.speed * (0.35 + 0.65 * healthRatio);
           const angle = Math.atan2(targetPlayer.y - enemy.y, targetPlayer.x - enemy.x);
-          enemy.vx += (Math.cos(angle) * enemy.speed - enemy.vx) * 0.15;
-          enemy.vy += (Math.sin(angle) * enemy.speed - enemy.vy) * 0.15;
+          enemy.vx += (Math.cos(angle) * currentSpeed - enemy.vx) * 0.15;
+          enemy.vy += (Math.sin(angle) * currentSpeed - enemy.vy) * 0.15;
 
           if (Math.abs(enemy.vx) > Math.abs(enemy.vy)) {
             enemy.facing = enemy.vx > 0 ? 'right' : 'left';
@@ -574,8 +576,9 @@ export class GameEngine {
   public render() {
     if (!this.canvas || !this.ctx || !this.dungeon) return;
     const ctx = this.ctx;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const dpr = window.devicePixelRatio || 1;
+    const w = this.canvas.clientWidth || (this.canvas.width / dpr);
+    const h = this.canvas.clientHeight || (this.canvas.height / dpr);
 
     // Screen shake offset
     const shakeX = (Math.random() - 0.5) * this.camera.shake * 2;
@@ -619,6 +622,7 @@ export class GameEngine {
         y: enemy.y,
         draw: () => {
           textureAtlas.renderEnemy(ctx, enemy);
+          this.renderEnemyLighting(ctx, enemy, lights);
         },
       });
     });
@@ -632,7 +636,11 @@ export class GameEngine {
           draw: () => {
             ctx.save();
             ctx.translate(player.x, player.y);
-            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            const shadowGrad = ctx.createRadialGradient(0, 4, 0, 0, 4, 12);
+            shadowGrad.addColorStop(0, 'rgba(0, 0, 0, 0.85)');
+            shadowGrad.addColorStop(0.6, 'rgba(0, 0, 0, 0.5)');
+            shadowGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = shadowGrad;
             ctx.beginPath();
             ctx.ellipse(0, 4, 12, 6, 0, 0, Math.PI * 2);
             ctx.fill();
@@ -676,6 +684,7 @@ export class GameEngine {
               spinAngle,
               player.isDashing
             );
+            this.renderEnemyLighting(ctx, player, lights);
           },
         });
       }
@@ -701,8 +710,9 @@ export class GameEngine {
   private renderTiles(ctx: CanvasRenderingContext2D) {
     if (!this.dungeon || !this.canvas) return;
     const { tiles, width, height } = this.dungeon.map;
-    const w = this.canvas.width;
-    const h = this.canvas.height;
+    const dpr = window.devicePixelRatio || 1;
+    const w = this.canvas.clientWidth || (this.canvas.width / dpr);
+    const h = this.canvas.clientHeight || (this.canvas.height / dpr);
 
     const floorImg = textureAtlas.get('tile_floor');
     const ritualImg = textureAtlas.get('tile_ritual_floor');
@@ -717,14 +727,14 @@ export class GameEngine {
     const minTileY = Math.max(0, Math.floor((this.camera.y - h / 2 - 32) / TILE_SIZE));
     const maxTileY = Math.min(height - 1, Math.ceil((this.camera.y + h / 2 + 32) / TILE_SIZE));
 
-    // Gather active dynamic light sources for this frame
+    // Gather active dynamic light sources for this frame (just below top of walls z=24/26)
     const lights: { x: number; y: number; z: number; radius: number; intensity: number; r: number; g: number; b: number }[] = [];
     for (const p of this.players) {
       if (p.isDead) continue;
       lights.push({
         x: p.x,
         y: p.y,
-        z: 18,
+        z: 24,
         radius: 155,
         intensity: 1.15,
         r: 254,
@@ -739,7 +749,7 @@ export class GameEngine {
       lights.push({
         x: torch.x,
         y: torch.y - 4,
-        z: 22,
+        z: 26,
         radius: 95 + animFlicker * 5,
         intensity: 1.35,
         r: 251,
@@ -769,83 +779,156 @@ export class GameEngine {
           ctx.drawImage(stairsImg, px, py);
         }
 
-        // 2. Dynamic Lighting via Surface Normals (N · L)
-        const norm = getTileNormal(t);
-        const tcx = px + 16;
-        const tcy = py + 16;
-        const tcz = norm.zHeight;
+        // 2. Dynamic Lighting via Per-Block Normal Map Sampling (N · L)
+        const normalKey = t === 3 ? 'tile_wall_front_normal' : t === 2 ? 'tile_wall_top_normal' : t === 4 ? 'tile_pillar_normal' : 'tile_floor_normal';
+        const blockSize = 4;
+        const normObj = { nx: 0, ny: 0, nz: 1 };
+        const tcz = getTileNormal(t).zHeight;
+
+        for (let by = 0; by < 32; by += blockSize) {
+          for (let bx = 0; bx < 32; bx += blockSize) {
+            const localX = bx + blockSize / 2;
+            const localY = by + blockSize / 2;
+            textureAtlas.getNormalAt(normalKey, localX, localY, normObj);
+
+            const subTcx = px + localX;
+            const subTcy = py + localY;
+
+            let directR = 0;
+            let directG = 0;
+            let directB = 0;
+            let totalDirect = 0;
+            let maxEdgeGlint = 0;
+            let edgeGlintSide: 'left' | 'right' | null = null;
+            let inDeepOcclusion = false;
+
+            for (const light of lights) {
+              const dx = light.x - subTcx;
+              const dy = light.y - subTcy;
+              const dz = light.z - tcz;
+              const distSq = dx * dx + dy * dy + dz * dz;
+              const radSq = light.radius * light.radius;
+
+              if (distSq < radSq) {
+                const dist = Math.sqrt(distSq);
+                const lx = dx / dist;
+                const ly = dy / dist;
+                const lz = dz / dist;
+
+                // Lambertian normal response: N · L
+                const ndotl = normObj.nx * lx + normObj.ny * ly + normObj.nz * lz;
+                const atten = Math.max(0, 1 - dist / light.radius);
+
+                if (ndotl > 0) {
+                  const irradiance = ndotl * atten * light.intensity;
+                  totalDirect += irradiance;
+                  directR += light.r * irradiance;
+                  directG += light.g * irradiance;
+                  directB += light.b * irradiance;
+
+                  if (t === 3 && bx === 0 && lx > 0.25) {
+                    maxEdgeGlint = Math.max(maxEdgeGlint, irradiance);
+                    edgeGlintSide = 'right';
+                  } else if (t === 3 && bx === 28 && lx < -0.25) {
+                    maxEdgeGlint = Math.max(maxEdgeGlint, irradiance);
+                    edgeGlintSide = 'left';
+                  }
+                } else if (t === 3 && dy < -8) {
+                  inDeepOcclusion = true;
+                }
+              }
+            }
+
+            if (totalDirect > 0.04) {
+              const alpha = Math.min(0.55, totalDirect * 0.45);
+              const r = Math.min(255, Math.round(directR / totalDirect));
+              const g = Math.min(255, Math.round(directG / totalDirect));
+              const b = Math.min(255, Math.round(directB / totalDirect));
+              ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(2)})`;
+              ctx.fillRect(px + bx, py + by, blockSize, blockSize);
+
+              if (maxEdgeGlint > 0.15 && edgeGlintSide) {
+                const glintAlpha = Math.min(0.65, maxEdgeGlint * 0.50);
+                ctx.fillStyle = `rgba(255, 235, 205, ${glintAlpha.toFixed(2)})`;
+                ctx.fillRect(edgeGlintSide === 'right' ? px + 30 : px + 1, py + by, 1, blockSize);
+              }
+            } else if (inDeepOcclusion && t === 3) {
+              ctx.fillStyle = 'rgba(6, 4, 8, 0.42)';
+              ctx.fillRect(px + bx, py + by, blockSize, blockSize);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private renderEnemyLighting(
+    ctx: CanvasRenderingContext2D,
+    entity: { x: number; y: number; isBoss?: boolean; type?: string },
+    lights: { x: number; y: number; z: number; radius: number; intensity: number; r: number; g: number; b: number }[]
+  ) {
+    ctx.save();
+    ctx.translate(Math.round(entity.x), Math.round(entity.y));
+    ctx.globalCompositeOperation = 'source-atop';
+
+    const radius = entity.isBoss ? 24 : entity.type === 'abomination' ? 18 : 12;
+    const tcz = 14; // Entity body height above floor
+    const blockSize = 3;
+
+    for (let dy = -radius; dy <= radius; dy += blockSize) {
+      for (let dx = -radius; dx <= radius; dx += blockSize) {
+        if (Math.hypot(dx, dy) > radius) continue;
+
+        // Hemispherical normal vector (pointing outwards from rounded body)
+        const nx = dx / radius;
+        const ny = dy / radius;
+        const nz = Math.sqrt(Math.max(0, 1 - nx * nx - ny * ny));
+
+        const subTcx = entity.x + dx;
+        const subTcy = entity.y + dy;
 
         let directR = 0;
         let directG = 0;
         let directB = 0;
         let totalDirect = 0;
-        let maxEdgeGlint = 0;
-        let edgeGlintSide: 'left' | 'right' | null = null;
-        let inDeepOcclusion = false;
 
         for (const light of lights) {
-          const dx = light.x - tcx;
-          const dy = light.y - tcy;
-          const dz = light.z - tcz;
-          const distSq = dx * dx + dy * dy + dz * dz;
+          const ldx = light.x - subTcx;
+          const ldy = light.y - subTcy;
+          const ldz = light.z - tcz;
+          const distSq = ldx * ldx + ldy * ldy + ldz * ldz;
           const radSq = light.radius * light.radius;
 
           if (distSq < radSq) {
             const dist = Math.sqrt(distSq);
-            const lx = dx / dist;
-            const ly = dy / dist;
-            const lz = dz / dist;
+            const lx = ldx / dist;
+            const ly = ldy / dist;
+            const lz = ldz / dist;
 
-            // Lambertian normal response: N · L
-            const ndotl = norm.nx * lx + norm.ny * ly + norm.nz * lz;
+            const dot = nx * lx + ny * ly + nz * lz;
+            const ndotl = (dot + 0.4) / 1.4; // Half-Lambert wrap lighting so sides react dynamically
             const atten = Math.max(0, 1 - dist / light.radius);
 
-            if (ndotl > 0) {
-              const irradiance = ndotl * atten * light.intensity;
-              totalDirect += irradiance;
-              directR += light.r * irradiance;
-              directG += light.g * irradiance;
-              directB += light.b * irradiance;
-
-              // Directional edge bevel glint on walls
-              if (t === 3) {
-                if (lx > 0.25) {
-                  maxEdgeGlint = Math.max(maxEdgeGlint, irradiance);
-                  edgeGlintSide = 'right';
-                } else if (lx < -0.25) {
-                  maxEdgeGlint = Math.max(maxEdgeGlint, irradiance);
-                  edgeGlintSide = 'left';
-                }
-              }
-            } else if (t === 3 && dy < -8) {
-              // Light is north/behind the south-facing wall -> self-occlusion shadow
-              inDeepOcclusion = true;
-            }
+            const irradiance = ndotl * atten * light.intensity;
+            totalDirect += irradiance;
+            directR += light.r * irradiance;
+            directG += light.g * irradiance;
+            directB += light.b * irradiance;
           }
         }
 
-        // Apply Dynamic Normal-Mapped Light Reaction
-        if (totalDirect > 0.04) {
-          const alpha = Math.min(0.48, totalDirect * 0.40);
+        if (totalDirect > 0.02) {
+          const alpha = Math.min(0.55, totalDirect * 0.45);
           const r = Math.min(255, Math.round(directR / totalDirect));
           const g = Math.min(255, Math.round(directG / totalDirect));
           const b = Math.min(255, Math.round(directB / totalDirect));
           ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha.toFixed(2)})`;
-          ctx.fillRect(px, py, 32, 32);
-
-          // Directional brick bevel glint
-          if (maxEdgeGlint > 0.15 && edgeGlintSide) {
-            const glintAlpha = Math.min(0.65, maxEdgeGlint * 0.50);
-            ctx.fillStyle = `rgba(255, 235, 205, ${glintAlpha.toFixed(2)})`;
-            ctx.fillRect(edgeGlintSide === 'right' ? px + 30 : px + 1, py, 1, 32);
-          }
-        } else if (inDeepOcclusion && t === 3) {
-          // Wall front facing away from light falls into shadow
-          ctx.fillStyle = 'rgba(6, 4, 8, 0.42)';
-          ctx.fillRect(px, py, 32, 32);
+          ctx.fillRect(dx, dy, blockSize, blockSize);
         }
       }
     }
+
+    ctx.restore();
   }
 
   private renderGroundItems(ctx: CanvasRenderingContext2D) {
