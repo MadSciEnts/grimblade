@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Grimblade: 16-Bit Action RPG</string>
+    <string name="title_activity_main">Grimblade: 16-Bit Action RPG</string>
+    <string name="package_name">com.grimblade.arpg</string>
+    <string name="custom_url_scheme">com.grimblade.arpg</string>
+</resources>

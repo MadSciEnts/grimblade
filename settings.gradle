@@ -1,0 +1,16 @@
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '0.10.0'
+}
+include ':app'
+if (new File(settingsDir, 'android/app').exists()) {
+    project(':app').projectDir = new File(settingsDir, 'android/app')
+}
+
+include ':capacitor-cordova-android-plugins'
+if (new File(settingsDir, 'capacitor-cordova-android-plugins').exists()) {
+    project(':capacitor-cordova-android-plugins').projectDir = new File(settingsDir, 'capacitor-cordova-android-plugins')
+} else if (new File(settingsDir, 'android/capacitor-cordova-android-plugins').exists()) {
+    project(':capacitor-cordova-android-plugins').projectDir = new File(settingsDir, 'android/capacitor-cordova-android-plugins')
+}
+
+apply from: 'capacitor.settings.gradle'
